@@ -1,11 +1,14 @@
 import { useState, useCallback } from 'react';
+import { Settings } from 'lucide-react';
 import { useGameState } from '@/hooks/useGameState';
 import { useSound } from '@/hooks/useSound';
+import { usePaymentSettings } from '@/hooks/usePaymentSettings';
 import { MinerButton } from '@/components/MinerButton';
 import { CoinDisplay } from '@/components/CoinDisplay';
 import { FloatingCoin } from '@/components/FloatingCoin';
 import { PinModal } from '@/components/PinModal';
 import { ConfirmModal } from '@/components/ConfirmModal';
+import { SettingsMenu } from '@/components/SettingsMenu';
 import { Button } from '@/components/ui/button';
 import { createStripePayout } from '@/lib/stripe';
 import { useToast } from '@/hooks/use-toast';
@@ -30,12 +33,14 @@ const Index = () => {
   } = useGameState();
   
   const { playCoinSound, playSuccessSound, playErrorSound } = useSound();
+  const { settings } = usePaymentSettings();
   const { toast } = useToast();
 
   const [floatingCoins, setFloatingCoins] = useState<FloatingCoinData[]>([]);
   const [coinIdCounter, setCoinIdCounter] = useState(0);
   const [showPinModal, setShowPinModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   
   // Secret tap state
   const [secretTaps, setSecretTaps] = useState(0);
@@ -104,6 +109,7 @@ const Index = () => {
 
   const handleConfirmWithdraw = async () => {
     const euroValue = getEuroValue();
+    const gatewayName = settings.activeGateway === 'stripe' ? 'Stripe' : 'PayPal';
     
     const result = await createStripePayout(euroValue);
     
@@ -112,7 +118,7 @@ const Index = () => {
       resetCoins();
       toast({
         title: "Saque realizado! 💰",
-        description: `€ ${euroValue.toLocaleString('pt-PT', { minimumFractionDigits: 2 })} enviado para sua conta Stripe.`,
+        description: `€ ${euroValue.toLocaleString('pt-PT', { minimumFractionDigits: 2 })} enviado para sua conta ${gatewayName}.`,
       });
     } else {
       throw new Error(result.error || 'Falha ao processar saque');
@@ -137,6 +143,14 @@ const Index = () => {
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-neon-green/5 via-background to-background" />
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-neon-purple/10 blur-[100px] rounded-full" />
       
+      {/* Settings button (top-right corner) */}
+      <button
+        onClick={() => setShowSettings(true)}
+        className="fixed top-4 right-4 z-50 w-12 h-12 rounded-full bg-card/80 border border-border flex items-center justify-center hover:bg-card hover:border-primary/50 transition-all group"
+      >
+        <Settings className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+      </button>
+
       {/* Secret tap zone (top-left corner) */}
       <div 
         className="fixed top-0 left-0 w-16 h-16 z-50 cursor-default"
@@ -190,7 +204,7 @@ const Index = () => {
 
         {/* Footer */}
         <p className="text-muted-foreground/50 text-xs mt-8">
-          🔒 Transações seguras via Stripe
+          🔒 Transações seguras via {settings.activeGateway === 'stripe' ? 'Stripe' : 'PayPal'}
         </p>
       </div>
 
@@ -210,6 +224,12 @@ const Index = () => {
         onConfirm={handleConfirmWithdraw}
         coins={coins}
         euroValue={euroValue}
+      />
+
+      {/* Settings Menu */}
+      <SettingsMenu
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
       />
     </div>
   );
