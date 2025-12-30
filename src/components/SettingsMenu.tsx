@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Settings, CreditCard, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,14 +14,23 @@ interface SettingsMenuProps {
 export const SettingsMenu = ({ isOpen, onClose }: SettingsMenuProps) => {
   const { 
     settings, 
+    isLoaded,
     setActiveGateway, 
     updateStripeSettings, 
     updatePaypalSettings 
   } = usePaymentSettings();
   const { toast } = useToast();
 
-  const [stripeEmail, setStripeEmail] = useState(settings.stripe.email);
-  const [paypalEmail, setPaypalEmail] = useState(settings.paypal.email);
+  const [stripeEmail, setStripeEmail] = useState('');
+  const [paypalEmail, setPaypalEmail] = useState('');
+
+  // Sync local state with loaded settings
+  useEffect(() => {
+    if (isLoaded) {
+      setStripeEmail(settings.stripe.email);
+      setPaypalEmail(settings.paypal.email);
+    }
+  }, [isLoaded, settings.stripe.email, settings.paypal.email]);
 
   const handleSave = () => {
     updateStripeSettings({ email: stripeEmail });
@@ -29,7 +38,7 @@ export const SettingsMenu = ({ isOpen, onClose }: SettingsMenuProps) => {
     
     toast({
       title: "Configurações salvas!",
-      description: `Gateway ativo: ${settings.activeGateway === 'stripe' ? 'Stripe' : 'PayPal'}`,
+      description: `Email Stripe: ${stripeEmail || 'não configurado'}`,
     });
     
     onClose();
