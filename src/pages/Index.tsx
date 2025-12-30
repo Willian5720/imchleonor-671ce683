@@ -198,12 +198,27 @@ const Index = () => {
 
         {/* Withdraw button (only visible after secret taps or if has coins) */}
         {(showWithdraw || coins > 0) && (
-          <Button
-            onClick={handleWithdrawClick}
-            className="bg-gradient-to-r from-secondary to-accent text-secondary-foreground font-display font-bold px-8 py-6 text-lg neon-glow-purple hover:scale-105 transition-transform mt-4"
-          >
-            💸 SACAR € {euroValue.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
-          </Button>
+          <div className="flex flex-col gap-3 mt-4">
+            <Button
+              onClick={handleWithdrawClick}
+              className="bg-gradient-to-r from-secondary to-accent text-secondary-foreground font-display font-bold px-8 py-6 text-lg neon-glow-purple hover:scale-105 transition-transform"
+            >
+              💸 SACAR € {euroValue.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
+            </Button>
+            <Button
+              onClick={() => {
+                resetCoins();
+                toast({
+                  title: "Coins resetados",
+                  description: "Seu saldo foi zerado.",
+                });
+              }}
+              variant="outline"
+              className="border-destructive/50 text-destructive hover:bg-destructive/10 font-display"
+            >
+              🗑️ Resetar Coins
+            </Button>
+          </div>
         )}
 
         {/* Footer */}
