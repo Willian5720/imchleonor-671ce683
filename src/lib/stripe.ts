@@ -1,42 +1,48 @@
-// Stripe Integration
-// To use this, you need to set up an Edge Function with your Stripe secret key
-// NEVER expose your Stripe secret key in frontend code!
+import { supabase } from "@/integrations/supabase/client";
 
 export interface StripePayoutRequest {
   amountCents: number;
-  currency: string;
-  destinationAccountId: string;
+  email: string;
+  description?: string;
 }
 
 export interface StripePayoutResponse {
   success: boolean;
-  transferId?: string;
+  paymentIntentId?: string;
+  clientSecret?: string;
   error?: string;
 }
 
-// This function would call your backend/edge function
-// The edge function would then use the Stripe API to create a transfer
+// Call the Stripe payout edge function
 export const createStripePayout = async (
-  amountEuros: number
+  amountEuros: number,
+  email: string
 ): Promise<StripePayoutResponse> => {
-  // In production, this would call your Supabase Edge Function
-  // that securely holds your STRIPE_SECRET_KEY
-  
-  // Example edge function call:
-  // const response = await supabase.functions.invoke('stripe-payout', {
-  //   body: { amount: amountEuros * 100, currency: 'eur' }
-  // });
-  
-  // For demo purposes, simulate a successful payout
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      // Simulate success
-      resolve({
-        success: true,
-        transferId: `tr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      });
-    }, 2000);
-  });
+  try {
+    const { data, error } = await supabase.functions.invoke('stripe-payout', {
+      body: {
+        amountCents: Math.round(amountEuros * 100),
+        email,
+        description: `Neon Miner payout - ${amountEuros.toFixed(2)} EUR`,
+      },
+    });
+
+    if (error) {
+      console.error('Edge function error:', error);
+      return {
+        success: false,
+        error: error.message || 'Erro ao processar pagamento',
+      };
+    }
+
+    return data;
+  } catch (err) {
+    console.error('Stripe payout error:', err);
+    return {
+      success: false,
+      error: 'Erro de conexão com o servidor',
+    };
+  }
 };
 
 // Helper to format currency

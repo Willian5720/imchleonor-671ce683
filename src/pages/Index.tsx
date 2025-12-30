@@ -109,16 +109,20 @@ const Index = () => {
 
   const handleConfirmWithdraw = async () => {
     const euroValue = getEuroValue();
-    const gatewayName = settings.activeGateway === 'stripe' ? 'Stripe' : 'PayPal';
+    const email = settings.stripe.email;
     
-    const result = await createStripePayout(euroValue);
+    if (!email) {
+      throw new Error('Configure seu email do Stripe nas configurações');
+    }
+    
+    const result = await createStripePayout(euroValue, email);
     
     if (result.success) {
       playSuccessSound();
       resetCoins();
       toast({
         title: "Saque realizado! 💰",
-        description: `€ ${euroValue.toLocaleString('pt-PT', { minimumFractionDigits: 2 })} enviado para sua conta ${gatewayName}.`,
+        description: `€ ${euroValue.toLocaleString('pt-PT', { minimumFractionDigits: 2 })} enviado para ${email} via Stripe.`,
       });
     } else {
       throw new Error(result.error || 'Falha ao processar saque');
