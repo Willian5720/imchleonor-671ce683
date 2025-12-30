@@ -1,1 +1,4 @@
 project_id = "ohrlarphhjfrclrogyqm"
+
+[functions.stripe-payout]
+verify_jwt = false
