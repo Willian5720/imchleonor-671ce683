@@ -1,4 +1,4 @@
 project_id = "ohrlarphhjfrclrogyqm"
 
-[functions.stripe-payout]
+[functions.bybit-transfer]
 verify_jwt = false

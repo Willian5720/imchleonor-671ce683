@@ -14,6 +14,90 @@ export type Database = {
   }
   public: {
     Tables: {
+      imch_balances: {
+        Row: {
+          admin_email: string
+          coins: number
+          created_at: string
+          id: string
+          last_mining_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          admin_email: string
+          coins?: number
+          created_at?: string
+          id?: string
+          last_mining_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          admin_email?: string
+          coins?: number
+          created_at?: string
+          id?: string
+          last_mining_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      imch_settings: {
+        Row: {
+          admin_email: string
+          created_at: string
+          id: string
+          transfer_threshold_usdt: number
+          updated_at: string
+        }
+        Insert: {
+          admin_email: string
+          created_at?: string
+          id?: string
+          transfer_threshold_usdt?: number
+          updated_at?: string
+        }
+        Update: {
+          admin_email?: string
+          created_at?: string
+          id?: string
+          transfer_threshold_usdt?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      imch_transfers: {
+        Row: {
+          admin_email: string
+          amount_usdt: number
+          bybit_transfer_id: string | null
+          coins_transferred: number
+          created_at: string
+          error_message: string | null
+          id: string
+          status: string
+        }
+        Insert: {
+          admin_email: string
+          amount_usdt: number
+          bybit_transfer_id?: string | null
+          coins_transferred: number
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          status?: string
+        }
+        Update: {
+          admin_email?: string
+          amount_usdt?: number
+          bybit_transfer_id?: string | null
+          coins_transferred?: number
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          status?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           coins: number
@@ -35,66 +119,6 @@ export type Database = {
           email?: string | null
           id?: string
           updated_at?: string
-        }
-        Relationships: []
-      }
-      stripe_connected_accounts: {
-        Row: {
-          account_email: string | null
-          created_at: string
-          id: string
-          is_active: boolean
-          stripe_account_id: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          account_email?: string | null
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          stripe_account_id: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          account_email?: string | null
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          stripe_account_id?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      withdrawals: {
-        Row: {
-          amount_cents: number
-          created_at: string
-          currency: string
-          id: string
-          status: string
-          stripe_transfer_id: string | null
-          user_id: string
-        }
-        Insert: {
-          amount_cents: number
-          created_at?: string
-          currency?: string
-          id?: string
-          status?: string
-          stripe_transfer_id?: string | null
-          user_id: string
-        }
-        Update: {
-          amount_cents?: number
-          created_at?: string
-          currency?: string
-          id?: string
-          status?: string
-          stripe_transfer_id?: string | null
-          user_id?: string
         }
         Relationships: []
       }
