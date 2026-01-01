@@ -27,8 +27,8 @@ export const FloatingCoin = ({ id, x, y, onComplete }: FloatingCoinProps) => {
       style={{ left: x - 20, top: y - 20 }}
     >
       <div className="flex items-center gap-1 text-primary font-display font-bold text-xl neon-text-green">
-        <span className="text-2xl">🪙</span>
-        <span>+1</span>
+        <span className="text-2xl">💎</span>
+        <span>+1 IMCH</span>
       </div>
     </div>
   );
