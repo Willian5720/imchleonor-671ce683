@@ -13,14 +13,14 @@ const ADMIN_EMAIL = Deno.env.get('ADMIN_EMAIL');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-// Generate HMAC signature for Bybit API
-async function generateSignature(params: Record<string, string>, timestamp: string, recvWindow: string): Promise<string> {
-  const queryString = Object.keys(params)
-    .sort()
-    .map(key => `${key}=${params[key]}`)
-    .join('&');
+// Generate HMAC signature for Bybit API V5
+// For POST: preSign = timestamp + apiKey + recvWindow + rawBody
+// For GET: preSign = timestamp + apiKey + recvWindow + queryString
+async function generateSignature(payload: string, timestamp: string, recvWindow: string): Promise<string> {
+  const preSign = `${timestamp}${BYBIT_API_KEY}${recvWindow}${payload}`;
   
-  const preSign = `${timestamp}${BYBIT_API_KEY}${recvWindow}${queryString}`;
+  console.log("Generating signature for payload:", payload);
+  console.log("PreSign string:", preSign);
   
   const encoder = new TextEncoder();
   const keyData = encoder.encode(BYBIT_SECRET_KEY);
@@ -43,10 +43,10 @@ async function generateSignature(params: Record<string, string>, timestamp: stri
 async function transferToFunding(amount: string): Promise<{ success: boolean; transferId?: string; error?: string }> {
   try {
     const timestamp = Date.now().toString();
-    const recvWindow = "5000";
+    const recvWindow = "20000";
     
-    // Internal transfer parameters
-    const params: Record<string, string> = {
+    // Internal transfer parameters - order matters for signature!
+    const params = {
       transferId: crypto.randomUUID(),
       coin: "USDT",
       amount: amount,
@@ -54,7 +54,12 @@ async function transferToFunding(amount: string): Promise<{ success: boolean; tr
       toAccountType: "FUND",
     };
     
-    const signature = await generateSignature(params, timestamp, recvWindow);
+    // For POST requests, signature uses the raw JSON body string
+    const bodyString = JSON.stringify(params);
+    const signature = await generateSignature(bodyString, timestamp, recvWindow);
+    
+    console.log("Making Bybit API request with timestamp:", timestamp);
+    console.log("Request body:", bodyString);
     
     const response = await fetch("https://api.bybit.com/v5/asset/transfer/inter-transfer", {
       method: "POST",
@@ -65,7 +70,7 @@ async function transferToFunding(amount: string): Promise<{ success: boolean; tr
         "X-BAPI-RECV-WINDOW": recvWindow,
         "X-BAPI-SIGN": signature,
       },
-      body: JSON.stringify(params),
+      body: bodyString,
     });
     
     const data = await response.json();
