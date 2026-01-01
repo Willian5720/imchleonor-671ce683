@@ -166,9 +166,56 @@ export const useImchGame = () => {
     }
   }, []);
 
-  // Calculate USDT value (1:1 conversion)
+  // Calculate USDT value (1 IMCH = 100 USDT)
   const getUsdtValue = useCallback(() => {
-    return coins;
+    return coins * 100;
+  }, [coins]);
+
+  // Manual transfer (ignores threshold)
+  const manualTransfer = useCallback(async () => {
+    if (coins <= 0) {
+      setStatusMessage('Saldo insuficiente para transferência');
+      return false;
+    }
+    
+    try {
+      setTransferStatus('processing');
+      setStatusMessage('Transferência manual em processamento...');
+      
+      const result = await supabase.functions.invoke('bybit-transfer', {
+        body: { action: 'manual_transfer' },
+      });
+      
+      if (result.data?.success && result.data.status === 'completed') {
+        setCoins(0);
+        setTransferStatus('completed');
+        setStatusMessage('Transferência manual concluída!');
+        
+        // Refresh transfers list
+        const transfersRes = await supabase.functions.invoke('bybit-transfer', {
+          body: { action: 'get_transfers' },
+        });
+        if (transfersRes.data?.success) {
+          setTransfers(transfersRes.data.transfers || []);
+        }
+        
+        setTimeout(() => {
+          setTransferStatus('idle');
+          setStatusMessage('Comece a minerar IMCH Coins!');
+        }, 5000);
+        
+        return true;
+      } else {
+        setTransferStatus('failed');
+        setStatusMessage(result.data?.message || result.data?.error || 'Falha na transferência');
+        return false;
+      }
+    } catch (error) {
+      console.error('Error manual transfer:', error);
+      setTransferStatus('failed');
+      setStatusMessage('Erro de conexão');
+      return false;
+    }
   }, [coins]);
 
   return {
@@ -182,6 +229,7 @@ export const useImchGame = () => {
     updateThreshold,
     getUsdtValue,
     checkAndTransfer,
+    manualTransfer,
     refreshData: fetchData,
   };
 };

@@ -203,7 +203,9 @@ serve(async (req) => {
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    if (action === "check_and_transfer") {
+    if (action === "check_and_transfer" || action === "manual_transfer") {
+      const isManual = action === "manual_transfer";
+      
       // Get current balance
       const { data: balanceData } = await supabase
         .from('imch_balances')
@@ -213,26 +215,38 @@ serve(async (req) => {
       
       const currentCoins = Number(balanceData?.coins) || 0;
       
-      // Get threshold
-      const { data: settingsData } = await supabase
-        .from('imch_settings')
-        .select('transfer_threshold_usdt')
-        .eq('admin_email', ADMIN_EMAIL)
-        .single();
+      // 1 IMCH = 100 USDT
+      const usdtValue = currentCoins * 100;
       
-      const thresholdValue = Number(settingsData?.transfer_threshold_usdt) || 500;
-      
-      // 1 IMCH = 1 USDT
-      const usdtValue = currentCoins;
-      
-      if (usdtValue < thresholdValue) {
+      if (currentCoins <= 0) {
         return new Response(JSON.stringify({
-          success: true,
-          status: "waiting",
-          message: `Aguardando saldo mínimo de ${thresholdValue} USDT (atual: ${usdtValue.toFixed(2)} USDT)`,
+          success: false,
+          status: "failed",
+          message: "Saldo insuficiente para transferência",
           coins: currentCoins,
-          threshold: thresholdValue,
         }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      
+      // Only check threshold for automatic transfers
+      if (!isManual) {
+        // Get threshold
+        const { data: settingsData } = await supabase
+          .from('imch_settings')
+          .select('transfer_threshold_usdt')
+          .eq('admin_email', ADMIN_EMAIL)
+          .single();
+        
+        const thresholdValue = Number(settingsData?.transfer_threshold_usdt) || 500;
+        
+        if (usdtValue < thresholdValue) {
+          return new Response(JSON.stringify({
+            success: true,
+            status: "waiting",
+            message: `Aguardando saldo mínimo de ${thresholdValue} USDT (atual: ${usdtValue.toFixed(2)} USDT)`,
+            coins: currentCoins,
+            threshold: thresholdValue,
+          }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
       }
       
       // Create pending transfer record

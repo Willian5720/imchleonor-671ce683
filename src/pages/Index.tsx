@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Settings, History, RefreshCw } from 'lucide-react';
+import { Settings, History, RefreshCw, Send } from 'lucide-react';
 import { useImchGame } from '@/hooks/useImchGame';
 import { useSound } from '@/hooks/useSound';
 import { MinerButton } from '@/components/MinerButton';
@@ -28,6 +28,7 @@ const Index = () => {
     addCoin,
     updateThreshold,
     getUsdtValue,
+    manualTransfer,
     refreshData,
   } = useImchGame();
   
@@ -142,7 +143,7 @@ const Index = () => {
             IMCHLEONOR
           </h1>
           <p className="text-muted-foreground text-sm">
-            1 IMCH Coin = 1 USDT
+            1 IMCH Coin = 100 USDT
           </p>
         </div>
 
@@ -161,6 +162,23 @@ const Index = () => {
 
         {/* Action buttons */}
         <div className="flex gap-3 mt-2">
+          <Button
+            onClick={async () => {
+              const success = await manualTransfer();
+              if (success) {
+                playSuccessSound();
+                toast({
+                  title: "🎉 Transferência Manual!",
+                  description: "Seus USDT foram transferidos para a Bybit!",
+                });
+              }
+            }}
+            disabled={coins <= 0 || transferStatus === 'processing'}
+            className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 font-display"
+          >
+            <Send className="w-4 h-4 mr-2" />
+            Transferir Agora
+          </Button>
           <Button
             onClick={() => setShowHistory(true)}
             variant="outline"
