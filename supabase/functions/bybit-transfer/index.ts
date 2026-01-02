@@ -208,6 +208,22 @@ serve(async (req) => {
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
+    if (action === "reset_coins") {
+      // Reset coins to 0
+      const { error } = await supabase
+        .from('imch_balances')
+        .update({ coins: 0 })
+        .eq('admin_email', ADMIN_EMAIL);
+      
+      if (error) throw error;
+      
+      return new Response(JSON.stringify({
+        success: true,
+        coins: 0,
+        message: "Saldo resetado com sucesso",
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     if (action === "check_and_transfer" || action === "manual_transfer") {
       const isManual = action === "manual_transfer";
       

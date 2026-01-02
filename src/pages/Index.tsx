@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Settings, History, RefreshCw, Send } from 'lucide-react';
+import { Settings, History, RefreshCw, Send, RotateCcw } from 'lucide-react';
 import { useImchGame } from '@/hooks/useImchGame';
 import { useSound } from '@/hooks/useSound';
 import { MinerButton } from '@/components/MinerButton';
@@ -29,6 +29,7 @@ const Index = () => {
     updateThreshold,
     getUsdtValue,
     manualTransfer,
+    resetCoins,
     refreshData,
   } = useImchGame();
   
@@ -161,7 +162,7 @@ const Index = () => {
         <MinerButton onClick={handleMine} />
 
         {/* Action buttons */}
-        <div className="flex gap-3 mt-2">
+        <div className="flex flex-wrap justify-center gap-3 mt-2">
           <Button
             onClick={async () => {
               const success = await manualTransfer();
@@ -178,6 +179,23 @@ const Index = () => {
           >
             <Send className="w-4 h-4 mr-2" />
             Transferir Agora
+          </Button>
+          <Button
+            onClick={async () => {
+              const success = await resetCoins();
+              if (success) {
+                toast({
+                  title: "🔄 Saldo Resetado",
+                  description: "Seus coins foram zerados.",
+                });
+              }
+            }}
+            disabled={coins <= 0 || transferStatus === 'processing'}
+            variant="outline"
+            className="border-destructive/50 text-destructive hover:bg-destructive/10 font-display"
+          >
+            <RotateCcw className="w-4 h-4 mr-2" />
+            Resetar
           </Button>
           <Button
             onClick={() => setShowHistory(true)}
