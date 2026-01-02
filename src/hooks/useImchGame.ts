@@ -218,6 +218,26 @@ export const useImchGame = () => {
     }
   }, [coins]);
 
+  // Reset coins to zero
+  const resetCoins = useCallback(async () => {
+    try {
+      const result = await supabase.functions.invoke('bybit-transfer', {
+        body: { action: 'reset_coins' },
+      });
+      
+      if (result.data?.success) {
+        setCoins(0);
+        setTransferStatus('idle');
+        setStatusMessage('Saldo resetado! Comece a minerar novamente.');
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error resetting coins:', error);
+      return false;
+    }
+  }, []);
+
   return {
     coins,
     threshold,
@@ -230,6 +250,7 @@ export const useImchGame = () => {
     getUsdtValue,
     checkAndTransfer,
     manualTransfer,
+    resetCoins,
     refreshData: fetchData,
   };
 };
