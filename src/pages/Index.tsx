@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react';
-import { Settings, History, RefreshCw, Send, RotateCcw } from 'lucide-react';
+import { Settings, History, RefreshCw, Send, RotateCcw, LogOut } from 'lucide-react';
 import { useImchGame } from '@/hooks/useImchGame';
 import { useSound } from '@/hooks/useSound';
+import { useAuth } from '@/hooks/useAuth';
 import { MinerButton } from '@/components/MinerButton';
 import { ImchCoinDisplay } from '@/components/ImchCoinDisplay';
 import { TransferStatus } from '@/components/TransferStatus';
@@ -34,6 +35,7 @@ const Index = () => {
   } = useImchGame();
   
   const { playCoinSound, playSuccessSound } = useSound();
+  const { signOut } = useAuth();
   const { toast } = useToast();
 
   const [floatingCoins, setFloatingCoins] = useState<FloatingCoinData[]>([]);
@@ -122,6 +124,12 @@ const Index = () => {
           className="w-10 h-10 rounded-full bg-card/80 border border-border flex items-center justify-center hover:bg-card hover:border-primary/50 transition-all group"
         >
           <Settings className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+        </button>
+        <button
+          onClick={signOut}
+          className="w-10 h-10 rounded-full bg-card/80 border border-destructive/50 flex items-center justify-center hover:bg-destructive/10 hover:border-destructive transition-all group"
+        >
+          <LogOut className="w-4 h-4 text-destructive/70 group-hover:text-destructive transition-colors" />
         </button>
       </div>
 
