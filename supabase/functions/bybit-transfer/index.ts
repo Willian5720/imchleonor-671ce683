@@ -95,17 +95,39 @@ serve(async (req) => {
   try {
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
     const body = await req.json();
-    const { action, coins, threshold } = body;
+    const { action, coins, threshold, userEmail } = body;
     
-    console.log("Request received:", { action, coins, threshold });
+    console.log("Request received:", { action, coins, threshold, userEmail });
     
     // Validate admin email is configured
     if (!ADMIN_EMAIL) {
       throw new Error("ADMIN_EMAIL not configured");
     }
+
+    // Verify user is the admin
+    if (action !== "verify_admin") {
+      if (!userEmail || userEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+        console.log("Access denied for email:", userEmail, "Expected:", ADMIN_EMAIL);
+        return new Response(JSON.stringify({
+          success: false,
+          error: "Acesso negado. Apenas o administrador pode acessar este sistema.",
+          unauthorized: true,
+        }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+    }
     
     if (!BYBIT_API_KEY || !BYBIT_SECRET_KEY) {
       throw new Error("Bybit API credentials not configured");
+    }
+
+    // Verify if user email matches admin
+    if (action === "verify_admin") {
+      const isAdmin = userEmail && userEmail.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+      console.log("Verifying admin:", { userEmail, ADMIN_EMAIL, isAdmin });
+      return new Response(JSON.stringify({
+        success: true,
+        isAdmin,
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     if (action === "get_balance") {

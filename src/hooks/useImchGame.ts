@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './useAuth';
 
 export interface TransferRecord {
   id: string;
@@ -12,29 +13,45 @@ export interface TransferRecord {
 }
 
 export const useImchGame = () => {
+  const { user } = useAuth();
+  const userEmail = user?.email || '';
+  
   const [coins, setCoins] = useState<number>(0);
   const [threshold, setThreshold] = useState<number>(500);
   const [transfers, setTransfers] = useState<TransferRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAuthorized, setIsAuthorized] = useState(true);
   const [transferStatus, setTransferStatus] = useState<'idle' | 'waiting' | 'processing' | 'completed' | 'failed'>('idle');
   const [statusMessage, setStatusMessage] = useState<string>('');
 
   // Fetch initial data
   const fetchData = useCallback(async () => {
+    if (!userEmail) {
+      setIsLoading(false);
+      return;
+    }
+    
     try {
       setIsLoading(true);
       
       // Get balance
       const balanceRes = await supabase.functions.invoke('bybit-transfer', {
-        body: { action: 'get_balance' },
+        body: { action: 'get_balance', userEmail },
       });
+      
+      if (balanceRes.data?.unauthorized) {
+        setIsAuthorized(false);
+        setIsLoading(false);
+        return;
+      }
+      
       if (balanceRes.data?.success) {
         setCoins(Number(balanceRes.data.coins) || 0);
       }
       
       // Get settings
       const settingsRes = await supabase.functions.invoke('bybit-transfer', {
-        body: { action: 'get_settings' },
+        body: { action: 'get_settings', userEmail },
       });
       if (settingsRes.data?.success) {
         setThreshold(Number(settingsRes.data.threshold) || 500);
@@ -42,7 +59,7 @@ export const useImchGame = () => {
       
       // Get transfers
       const transfersRes = await supabase.functions.invoke('bybit-transfer', {
-        body: { action: 'get_transfers' },
+        body: { action: 'get_transfers', userEmail },
       });
       if (transfersRes.data?.success) {
         setTransfers(transfersRes.data.transfers || []);
@@ -68,7 +85,7 @@ export const useImchGame = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [userEmail]);
 
   useEffect(() => {
     fetchData();
@@ -78,7 +95,7 @@ export const useImchGame = () => {
   const addCoin = useCallback(async (amount: number = 1) => {
     try {
       const result = await supabase.functions.invoke('bybit-transfer', {
-        body: { action: 'add_coins', coins: amount },
+        body: { action: 'add_coins', coins: amount, userEmail },
       });
       
       if (result.data?.success) {
@@ -100,7 +117,7 @@ export const useImchGame = () => {
       console.error('Error adding coin:', error);
       return false;
     }
-  }, [threshold]);
+  }, [threshold, userEmail]);
 
   // Check and execute automatic transfer
   const checkAndTransfer = useCallback(async () => {
@@ -109,7 +126,7 @@ export const useImchGame = () => {
       setStatusMessage('Transferência em processamento...');
       
       const result = await supabase.functions.invoke('bybit-transfer', {
-        body: { action: 'check_and_transfer' },
+        body: { action: 'check_and_transfer', userEmail },
       });
       
       if (result.data?.success) {
@@ -120,7 +137,7 @@ export const useImchGame = () => {
           setStatusMessage('Transferência concluída!');
           // Refresh transfers list
           const transfersRes = await supabase.functions.invoke('bybit-transfer', {
-            body: { action: 'get_transfers' },
+            body: { action: 'get_transfers', userEmail },
           });
           if (transfersRes.data?.success) {
             setTransfers(transfersRes.data.transfers || []);
@@ -146,13 +163,13 @@ export const useImchGame = () => {
       setTransferStatus('failed');
       setStatusMessage('Erro de conexão');
     }
-  }, []);
+  }, [userEmail]);
 
   // Update threshold setting
   const updateThreshold = useCallback(async (newThreshold: number) => {
     try {
       const result = await supabase.functions.invoke('bybit-transfer', {
-        body: { action: 'update_settings', threshold: newThreshold },
+        body: { action: 'update_settings', threshold: newThreshold, userEmail },
       });
       
       if (result.data?.success) {
@@ -164,7 +181,7 @@ export const useImchGame = () => {
       console.error('Error updating threshold:', error);
       return false;
     }
-  }, []);
+  }, [userEmail]);
 
   // Calculate USDT value (1 IMCH = 100 USDT)
   const getUsdtValue = useCallback(() => {
@@ -183,7 +200,7 @@ export const useImchGame = () => {
       setStatusMessage('Transferência manual em processamento...');
       
       const result = await supabase.functions.invoke('bybit-transfer', {
-        body: { action: 'manual_transfer' },
+        body: { action: 'manual_transfer', userEmail },
       });
       
       if (result.data?.success && result.data.status === 'completed') {
@@ -193,7 +210,7 @@ export const useImchGame = () => {
         
         // Refresh transfers list
         const transfersRes = await supabase.functions.invoke('bybit-transfer', {
-          body: { action: 'get_transfers' },
+          body: { action: 'get_transfers', userEmail },
         });
         if (transfersRes.data?.success) {
           setTransfers(transfersRes.data.transfers || []);
@@ -216,13 +233,13 @@ export const useImchGame = () => {
       setStatusMessage('Erro de conexão');
       return false;
     }
-  }, [coins]);
+  }, [coins, userEmail]);
 
   // Reset coins to zero
   const resetCoins = useCallback(async () => {
     try {
       const result = await supabase.functions.invoke('bybit-transfer', {
-        body: { action: 'reset_coins' },
+        body: { action: 'reset_coins', userEmail },
       });
       
       if (result.data?.success) {
@@ -236,13 +253,14 @@ export const useImchGame = () => {
       console.error('Error resetting coins:', error);
       return false;
     }
-  }, []);
+  }, [userEmail]);
 
   return {
     coins,
     threshold,
     transfers,
     isLoading,
+    isAuthorized,
     transferStatus,
     statusMessage,
     addCoin,

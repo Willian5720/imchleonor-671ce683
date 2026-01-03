@@ -20,22 +20,46 @@ const Auth = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (session) {
-          navigate('/', { replace: true });
+          // Verify if user is admin before redirecting
+          setTimeout(async () => {
+            const result = await supabase.functions.invoke('bybit-transfer', {
+              body: { action: 'verify_admin', userEmail: session.user.email },
+            });
+            
+            if (result.data?.isAdmin) {
+              navigate('/', { replace: true });
+            } else {
+              toast({
+                title: "Acesso Negado",
+                description: "Este email não está autorizado a acessar o sistema.",
+                variant: "destructive",
+              });
+              await supabase.auth.signOut();
+            }
+          }, 0);
         }
         setCheckingSession(false);
       }
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session) {
-        navigate('/', { replace: true });
+        const result = await supabase.functions.invoke('bybit-transfer', {
+          body: { action: 'verify_admin', userEmail: session.user.email },
+        });
+        
+        if (result.data?.isAdmin) {
+          navigate('/', { replace: true });
+        } else {
+          await supabase.auth.signOut();
+        }
       }
       setCheckingSession(false);
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, toast]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
