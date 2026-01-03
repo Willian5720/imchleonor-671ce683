@@ -24,6 +24,7 @@ const Index = () => {
     threshold,
     transfers,
     isLoading,
+    isAuthorized,
     transferStatus,
     statusMessage,
     addCoin,
@@ -35,7 +36,7 @@ const Index = () => {
   } = useImchGame();
   
   const { playCoinSound, playSuccessSound } = useSound();
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const { toast } = useToast();
 
   const [floatingCoins, setFloatingCoins] = useState<FloatingCoinData[]>([]);
@@ -91,6 +92,26 @@ const Index = () => {
             IMCHLEONOR
           </div>
           <p className="text-muted-foreground text-sm">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthorized) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="glass-card p-8 text-center max-w-md">
+          <div className="text-destructive text-6xl mb-4">🚫</div>
+          <h1 className="font-display text-2xl text-destructive mb-2">
+            Acesso Negado
+          </h1>
+          <p className="text-muted-foreground mb-6">
+            O email <span className="text-foreground">{user?.email}</span> não está autorizado a acessar este sistema.
+          </p>
+          <Button onClick={signOut} variant="destructive" className="font-display">
+            <LogOut className="w-4 h-4 mr-2" />
+            Sair
+          </Button>
         </div>
       </div>
     );
