@@ -248,6 +248,7 @@ serve(async (req) => {
 
     if (action === "check_and_transfer" || action === "manual_transfer") {
       const isManual = action === "manual_transfer";
+      const customCoins = body.coins ? Number(body.coins) : null;
       
       // Get current balance
       const { data: balanceData } = await supabase
@@ -258,10 +259,13 @@ serve(async (req) => {
       
       const currentCoins = Number(balanceData?.coins) || 0;
       
-      // 1 IMCH = 100 USDT
-      const usdtValue = currentCoins * 100;
+      // Determine coins to transfer (custom amount for manual, or all)
+      const coinsToTransfer = isManual && customCoins ? Math.min(customCoins, currentCoins) : currentCoins;
       
-      if (currentCoins <= 0) {
+      // 1 IMCH = 100 USDT
+      const usdtValue = coinsToTransfer * 100;
+      
+      if (coinsToTransfer <= 0) {
         return new Response(JSON.stringify({
           success: false,
           status: "failed",
@@ -298,7 +302,7 @@ serve(async (req) => {
         .insert({
           admin_email: ADMIN_EMAIL,
           amount_usdt: usdtValue,
-          coins_transferred: currentCoins,
+          coins_transferred: coinsToTransfer,
           status: 'processing',
         })
         .select()
@@ -319,10 +323,11 @@ serve(async (req) => {
           })
           .eq('id', transferRecord.id);
         
-        // Reset balance
+        // Subtract transferred coins from balance
+        const remainingCoins = currentCoins - coinsToTransfer;
         await supabase
           .from('imch_balances')
-          .update({ coins: 0 })
+          .update({ coins: remainingCoins })
           .eq('admin_email', ADMIN_EMAIL);
         
         return new Response(JSON.stringify({
@@ -330,7 +335,7 @@ serve(async (req) => {
           status: "completed",
           message: `Transferência de ${usdtValue.toFixed(2)} USDT realizada com sucesso para a conta Bybit`,
           transferId: transferResult.transferId,
-          coins: 0,
+          coins: remainingCoins,
         }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       } else {
         // Update transfer record with failure
