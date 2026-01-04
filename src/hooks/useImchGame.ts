@@ -189,9 +189,16 @@ export const useImchGame = () => {
   }, [coins]);
 
   // Manual transfer (ignores threshold)
-  const manualTransfer = useCallback(async () => {
-    if (coins <= 0) {
+  const manualTransfer = useCallback(async (customCoins?: number) => {
+    const coinsToTransfer = customCoins ?? coins;
+    
+    if (coinsToTransfer <= 0) {
       setStatusMessage('Saldo insuficiente para transferência');
+      return false;
+    }
+    
+    if (customCoins && customCoins > coins) {
+      setStatusMessage('Valor excede o saldo disponível');
       return false;
     }
     
@@ -200,11 +207,11 @@ export const useImchGame = () => {
       setStatusMessage('Transferência manual em processamento...');
       
       const result = await supabase.functions.invoke('bybit-transfer', {
-        body: { action: 'manual_transfer', userEmail },
+        body: { action: 'manual_transfer', userEmail, coins: coinsToTransfer },
       });
       
       if (result.data?.success && result.data.status === 'completed') {
-        setCoins(0);
+        setCoins(Number(result.data.coins) || 0);
         setTransferStatus('completed');
         setStatusMessage('Transferência manual concluída!');
         

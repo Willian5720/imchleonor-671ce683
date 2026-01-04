@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Settings, History, RefreshCw, Send, RotateCcw, LogOut } from 'lucide-react';
+import { Settings, History, RefreshCw, Send, RotateCcw, LogOut, DollarSign } from 'lucide-react';
 import { useImchGame } from '@/hooks/useImchGame';
 import { useSound } from '@/hooks/useSound';
 import { useAuth } from '@/hooks/useAuth';
@@ -9,6 +9,7 @@ import { TransferStatus } from '@/components/TransferStatus';
 import { TransferHistory } from '@/components/TransferHistory';
 import { ImchSettings } from '@/components/ImchSettings';
 import { FloatingCoin } from '@/components/FloatingCoin';
+import { ManualTransfer } from '@/components/ManualTransfer';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 
@@ -43,6 +44,7 @@ const Index = () => {
   const [coinIdCounter, setCoinIdCounter] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showManualTransfer, setShowManualTransfer] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleMine = useCallback(async (e: React.MouseEvent) => {
@@ -193,21 +195,30 @@ const Index = () => {
         {/* Action buttons */}
         <div className="flex flex-wrap justify-center gap-3 mt-2">
           <Button
+            onClick={() => setShowManualTransfer(true)}
+            disabled={coins <= 0 || transferStatus === 'processing'}
+            className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 font-display"
+          >
+            <DollarSign className="w-4 h-4 mr-2" />
+            Transferir Valor
+          </Button>
+          <Button
             onClick={async () => {
               const success = await manualTransfer();
               if (success) {
                 playSuccessSound();
                 toast({
                   title: "🎉 Transferência Manual!",
-                  description: "Seus USDT foram transferidos para a Bybit!",
+                  description: "Todos os USDT foram transferidos para a Bybit!",
                 });
               }
             }}
             disabled={coins <= 0 || transferStatus === 'processing'}
-            className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 font-display"
+            variant="outline"
+            className="border-primary/50 text-primary hover:bg-primary/10 font-display"
           >
             <Send className="w-4 h-4 mr-2" />
-            Transferir Agora
+            Transferir Tudo
           </Button>
           <Button
             onClick={async () => {
@@ -242,6 +253,25 @@ const Index = () => {
           <span className="text-primary/50">Sistema 100% automático</span>
         </p>
       </div>
+
+      {/* Manual Transfer Modal */}
+      <ManualTransfer
+        isOpen={showManualTransfer}
+        onClose={() => setShowManualTransfer(false)}
+        onTransfer={async (coinsAmount) => {
+          const success = await manualTransfer(coinsAmount);
+          if (success) {
+            playSuccessSound();
+            toast({
+              title: "🎉 Transferência Manual!",
+              description: `${(coinsAmount * 100).toFixed(2)} USDT transferidos para a Bybit!`,
+            });
+          }
+          return success;
+        }}
+        currentCoins={coins}
+        isProcessing={transferStatus === 'processing'}
+      />
 
       {/* Settings Modal */}
       <ImchSettings
