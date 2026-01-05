@@ -2,10 +2,21 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
 import { encode as encodeHex } from "https://deno.land/std@0.168.0/encoding/hex.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// CORS configuration - restrict to allowed origins
+const allowedOrigins = [
+  'https://ohrlarphhjfrclrogyqm.lovableproject.com',
+  'http://localhost:5173',
+  'http://localhost:8080',
+];
+
+function getCorsHeaders(origin: string | null) {
+  const allowedOrigin = origin && allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Credentials': 'true',
+  };
+}
 
 const BYBIT_API_KEY = Deno.env.get('BYBIT_API_KEY');
 const BYBIT_SECRET_KEY = Deno.env.get('BYBIT_SECRET_KEY');
@@ -88,6 +99,9 @@ async function transferToFunding(amount: string): Promise<{ success: boolean; tr
 }
 
 serve(async (req) => {
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
+
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -363,6 +377,7 @@ serve(async (req) => {
 
   } catch (error) {
     console.error("Edge function error:", error);
+    const corsHeaders = getCorsHeaders(req.headers.get('origin'));
     return new Response(JSON.stringify({
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
