@@ -30,8 +30,8 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 async function generateSignature(payload: string, timestamp: string, recvWindow: string): Promise<string> {
   const preSign = `${timestamp}${BYBIT_API_KEY}${recvWindow}${payload}`;
   
-  console.log("Generating signature for payload:", payload);
-  console.log("PreSign string:", preSign);
+  // Log only payload length for debugging, never expose API keys
+  console.log("Generating signature for payload length:", payload.length);
   
   const encoder = new TextEncoder();
   const keyData = encoder.encode(BYBIT_SECRET_KEY);
@@ -69,8 +69,7 @@ async function transferToFunding(amount: string): Promise<{ success: boolean; tr
     const bodyString = JSON.stringify(params);
     const signature = await generateSignature(bodyString, timestamp, recvWindow);
     
-    console.log("Making Bybit API request with timestamp:", timestamp);
-    console.log("Request body:", bodyString);
+    console.log("Making Bybit transfer request");
     
     const response = await fetch("https://api.bybit.com/v5/asset/transfer/inter-transfer", {
       method: "POST",
@@ -85,15 +84,16 @@ async function transferToFunding(amount: string): Promise<{ success: boolean; tr
     });
     
     const data = await response.json();
-    console.log("Bybit transfer response:", data);
     
     if (data.retCode === 0) {
+      console.log("Bybit transfer successful");
       return { success: true, transferId: data.result?.transferId || params.transferId };
     } else {
+      console.error("Bybit transfer failed with code:", data.retCode);
       return { success: false, error: data.retMsg || "Transfer failed" };
     }
   } catch (error) {
-    console.error("Bybit transfer error:", error);
+    console.error("Bybit transfer error occurred");
     return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
   }
 }
@@ -111,7 +111,7 @@ serve(async (req) => {
     const body = await req.json();
     const { action, coins, threshold, userEmail } = body;
     
-    console.log("Request received:", { action, coins, threshold, userEmail });
+    console.log("Request received:", { action });
     
     // Validate admin email is configured
     if (!ADMIN_EMAIL) {
@@ -121,7 +121,7 @@ serve(async (req) => {
     // Verify user is the admin
     if (action !== "verify_admin") {
       if (!userEmail || userEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
-        console.log("Access denied for email:", userEmail, "Expected:", ADMIN_EMAIL);
+        console.log("Access denied - unauthorized request");
         return new Response(JSON.stringify({
           success: false,
           error: "Acesso negado. Apenas o administrador pode acessar este sistema.",
@@ -137,7 +137,7 @@ serve(async (req) => {
     // Verify if user email matches admin
     if (action === "verify_admin") {
       const isAdmin = userEmail && userEmail.toLowerCase() === ADMIN_EMAIL.toLowerCase();
-      console.log("Verifying admin:", { userEmail, ADMIN_EMAIL, isAdmin });
+      console.log("Admin verification completed");
       return new Response(JSON.stringify({
         success: true,
         isAdmin,
