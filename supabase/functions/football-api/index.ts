@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
 
 // CORS configuration - restrict to allowed origins
 const allowedOrigins = [
@@ -17,6 +18,7 @@ function getCorsHeaders(origin: string | null) {
 }
 
 const FOOTBALL_API_KEY = Deno.env.get('FOOTBALL_API_KEY');
+const ADMIN_EMAIL = Deno.env.get('ADMIN_EMAIL');
 const API_BASE = 'https://v3.football.api-sports.io';
 
 serve(async (req) => {
@@ -29,8 +31,22 @@ serve(async (req) => {
   }
 
   try {
-    const { action, params } = await req.json();
-    console.log(`Football API action: ${action}`, params);
+    const { action, params, userEmail } = await req.json();
+    console.log("Football API request:", { action });
+
+    // Validate admin email is configured
+    if (!ADMIN_EMAIL) {
+      throw new Error('ADMIN_EMAIL not configured');
+    }
+
+    // Verify user is the admin
+    if (!userEmail || userEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+      console.log("Access denied - unauthorized request");
+      return new Response(
+        JSON.stringify({ error: 'Acesso negado' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     if (!FOOTBALL_API_KEY) {
       throw new Error('FOOTBALL_API_KEY not configured');
@@ -93,7 +109,7 @@ serve(async (req) => {
     }
 
     const url = `${API_BASE}${endpoint}?${queryParams.toString()}`;
-    console.log(`Fetching: ${url}`);
+    console.log("Fetching football data for action:", action);
 
     const response = await fetch(url, {
       headers: {
@@ -103,22 +119,21 @@ serve(async (req) => {
     });
 
     if (!response.ok) {
-      throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+      throw new Error(`API request failed: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log(`Response received, ${data.results || 0} results`);
+    console.log("Football API response received, results:", data.results || 0);
 
     return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error: unknown) {
-    console.error('Football API error:', error);
+    console.error('Football API error occurred');
     const corsHeaders = getCorsHeaders(req.headers.get('origin'));
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(JSON.stringify({ 
-      error: errorMessage,
+      error: 'An error occurred',
       response: [] 
     }), {
       status: 500,

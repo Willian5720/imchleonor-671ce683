@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './useAuth';
 
 interface Fixture {
   fixture: {
@@ -86,6 +87,7 @@ interface Prediction {
 }
 
 export const useFootballData = () => {
+  const { user } = useAuth();
   const [liveFixtures, setLiveFixtures] = useState<Fixture[]>([]);
   const [todayFixtures, setTodayFixtures] = useState<Fixture[]>([]);
   const [odds, setOdds] = useState<Odds[]>([]);
@@ -96,7 +98,7 @@ export const useFootballData = () => {
   const fetchFromApi = useCallback(async (action: string, params?: Record<string, unknown>) => {
     try {
       const { data, error } = await supabase.functions.invoke('football-api', {
-        body: { action, params },
+        body: { action, params, userEmail: user?.email },
       });
 
       if (error) throw error;
@@ -105,7 +107,7 @@ export const useFootballData = () => {
       console.error(`Error fetching ${action}:`, err);
       throw err;
     }
-  }, []);
+  }, [user?.email]);
 
   const fetchLiveFixtures = useCallback(async () => {
     try {
