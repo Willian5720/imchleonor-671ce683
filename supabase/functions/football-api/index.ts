@@ -1,17 +1,27 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
 
-// CORS configuration - restrict to allowed origins
-const allowedOrigins = [
-  'https://ohrlarphhjfrclrogyqm.lovableproject.com',
-  'http://localhost:5173',
-  'http://localhost:8080',
-];
+// CORS configuration - allow Lovable domains and localhost
+function isAllowedOrigin(origin: string | null): boolean {
+  if (!origin) return false;
+  
+  // Allow all Lovable domains (preview and production)
+  if (origin.endsWith('.lovable.app') || origin.endsWith('.lovableproject.com')) {
+    return true;
+  }
+  
+  // Allow localhost for development
+  if (origin.startsWith('http://localhost:')) {
+    return true;
+  }
+  
+  return false;
+}
 
 function getCorsHeaders(origin: string | null) {
-  const allowedOrigin = origin && allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
+  const allowedOrigin = isAllowedOrigin(origin) ? origin : 'https://ohrlarphhjfrclrogyqm.lovableproject.com';
   return {
-    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Origin': allowedOrigin!,
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
     'Access-Control-Allow-Credentials': 'true',
   };
