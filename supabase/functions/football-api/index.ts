@@ -119,17 +119,20 @@ serve(async (req) => {
     }
 
     const url = `${API_BASE}${endpoint}?${queryParams.toString()}`;
-    console.log("Fetching football data for action:", action);
+    console.log("Fetching football data for action:", action, "url:", endpoint);
 
     const response = await fetch(url, {
       headers: {
-        'x-rapidapi-key': FOOTBALL_API_KEY,
-        'x-rapidapi-host': 'v3.football.api-sports.io',
+        'x-apisports-key': FOOTBALL_API_KEY,
       },
     });
 
+    console.log("API response status:", response.status);
+
     if (!response.ok) {
-      throw new Error(`API request failed: ${response.status}`);
+      const errorText = await response.text();
+      console.error("API error response:", errorText);
+      throw new Error(`API request failed: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
@@ -140,10 +143,11 @@ serve(async (req) => {
     });
 
   } catch (error: unknown) {
-    console.error('Football API error occurred');
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Football API error:', errorMessage);
     const corsHeaders = getCorsHeaders(req.headers.get('origin'));
     return new Response(JSON.stringify({ 
-      error: 'An error occurred',
+      error: errorMessage,
       response: [] 
     }), {
       status: 500,
