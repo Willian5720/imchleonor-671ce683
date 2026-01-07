@@ -121,9 +121,12 @@ serve(async (req) => {
     const url = `${API_BASE}${endpoint}?${queryParams.toString()}`;
     console.log("Fetching football data for action:", action, "url:", endpoint);
 
+    // Support both API-Football direct and RapidAPI authentication
     const response = await fetch(url, {
       headers: {
         'x-apisports-key': FOOTBALL_API_KEY,
+        'x-rapidapi-key': FOOTBALL_API_KEY,
+        'x-rapidapi-host': 'v3.football.api-sports.io',
       },
     });
 
