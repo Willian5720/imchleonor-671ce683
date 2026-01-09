@@ -1,4 +1,4 @@
-import { BarChart3, Gamepad2, LogOut, TrendingUp, Zap } from 'lucide-react';
+import { Gamepad2, LogOut } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -16,10 +16,7 @@ import {
 import { Button } from '@/components/ui/button';
 
 const menuItems = [
-  { title: 'Dashboard', url: '/', icon: BarChart3 },
-  { title: 'Jogos Ao Vivo', url: '/live', icon: Zap },
-  { title: 'Probabilidades', url: '/odds', icon: TrendingUp },
-  { title: 'IMCHLEONOR', url: '/game', icon: Gamepad2 },
+  { title: 'IMCHLEONOR', url: '/', icon: Gamepad2 },
 ];
 
 export function AppSidebar() {
@@ -32,13 +29,13 @@ export function AppSidebar() {
       <SidebarHeader className="p-4 border-b border-border">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-            <BarChart3 className="w-4 h-4 text-background" />
+            <Gamepad2 className="w-4 h-4 text-background" />
           </div>
           <div>
             <h2 className="font-display text-lg font-bold text-primary neon-text-green">
               LEONOR
             </h2>
-            <p className="text-[10px] text-muted-foreground">Sports Analytics</p>
+            <p className="text-[10px] text-muted-foreground">Neon Miner</p>
           </div>
         </div>
       </SidebarHeader>
