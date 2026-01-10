@@ -153,6 +153,36 @@ async function transferToFunding(amount: string): Promise<{ success: boolean; tr
   }
 }
 
+// ==================== HELPER: Verify JWT and get user email ====================
+
+async function getAuthenticatedUserEmail(req: Request): Promise<{ email: string | null; error: string | null }> {
+  const authHeader = req.headers.get('Authorization');
+  
+  if (!authHeader?.startsWith('Bearer ')) {
+    return { email: null, error: 'Missing or invalid authorization header' };
+  }
+  
+  const token = authHeader.replace('Bearer ', '');
+  const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY');
+  
+  // Create a client with the user's token to verify their identity
+  const userSupabase = createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!, {
+    global: { headers: { Authorization: authHeader } }
+  });
+  
+  try {
+    const { data, error } = await userSupabase.auth.getUser(token);
+    
+    if (error || !data.user) {
+      return { email: null, error: 'Invalid or expired token' };
+    }
+    
+    return { email: data.user.email || null, error: null };
+  } catch {
+    return { email: null, error: 'Failed to verify authentication' };
+  }
+}
+
 // ==================== MAIN HANDLER ====================
 
 serve(async (req) => {
@@ -195,37 +225,43 @@ serve(async (req) => {
       throw new Error("ADMIN_EMAIL not configured");
     }
 
-    // Handle verify_admin separately (doesn't require auth)
+    // Handle verify_admin - requires JWT verification
     if (action === "verify_admin") {
-      const validation = VerifyAdminSchema.safeParse(body);
-      if (!validation.success) {
+      // Get the authenticated user's email from JWT
+      const { email: authenticatedEmail, error: authError } = await getAuthenticatedUserEmail(req);
+      
+      if (authError || !authenticatedEmail) {
+        // Allow unauthenticated verify_admin calls, but return isAdmin: false
+        console.log("Unauthenticated verify_admin request");
         return new Response(JSON.stringify({
-          success: false,
-          error: "Invalid parameters for verify_admin",
-        }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          success: true,
+          isAdmin: false,
+        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
       
-      const { userEmail } = validation.data;
-      const isAdmin = userEmail && userEmail.toLowerCase() === ADMIN_EMAIL.toLowerCase();
-      console.log("Admin verification completed");
+      const isAdmin = authenticatedEmail.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+      console.log("Admin verification completed via JWT");
       return new Response(JSON.stringify({
         success: true,
         isAdmin,
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // All other actions require authenticated admin
-    const authValidation = AuthenticatedRequestSchema.safeParse(body);
-    if (!authValidation.success) {
+    // All other actions require authenticated admin - verify from JWT, not from request body
+    const { email: authenticatedEmail, error: authError } = await getAuthenticatedUserEmail(req);
+    
+    if (authError || !authenticatedEmail) {
+      console.log("Authentication failed:", authError);
       return new Response(JSON.stringify({
         success: false,
-        error: "Email is required for this action",
-      }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        error: "Autenticação necessária. Por favor, faça login.",
+        unauthorized: true,
+      }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const { userEmail } = authValidation.data;
-    if (userEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
-      console.log("Access denied - unauthorized request");
+    // Verify the authenticated user is the admin - using JWT email, NOT client-supplied email
+    if (authenticatedEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+      console.log("Access denied - user is not admin");
       return new Response(JSON.stringify({
         success: false,
         error: "Acesso negado. Apenas o administrador pode acessar este sistema.",
