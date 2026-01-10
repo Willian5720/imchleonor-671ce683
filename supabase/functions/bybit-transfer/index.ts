@@ -171,13 +171,27 @@ async function getAuthenticatedUserEmail(req: Request): Promise<{ email: string 
   });
   
   try {
-    const { data, error } = await userSupabase.auth.getUser(token);
+    // Use getClaims to verify the JWT without requiring active session
+    const { data, error } = await userSupabase.auth.getClaims(token);
     
-    if (error || !data.user) {
-      return { email: null, error: 'Invalid or expired token' };
+    if (error || !data?.claims) {
+      // Fallback to getUser if getClaims fails (for older tokens)
+      const { data: userData, error: userError } = await userSupabase.auth.getUser(token);
+      
+      if (userError || !userData.user) {
+        return { email: null, error: 'Invalid or expired token' };
+      }
+      
+      return { email: userData.user.email || null, error: null };
     }
     
-    return { email: data.user.email || null, error: null };
+    // Extract email from JWT claims
+    const email = data.claims.email as string | undefined;
+    if (!email) {
+      return { email: null, error: 'Email not found in token' };
+    }
+    
+    return { email, error: null };
   } catch {
     return { email: null, error: 'Failed to verify authentication' };
   }
