@@ -1,6 +1,7 @@
-import { Gamepad2, LogOut } from 'lucide-react';
+import { Gamepad2, LogOut, ShoppingBag } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserRole } from '@/hooks/useUserRole';
 import {
   Sidebar,
   SidebarContent,
@@ -15,27 +16,29 @@ import {
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 
-const menuItems = [
-  { title: 'IMCHLEONOR', url: '/', icon: Gamepad2 },
-];
-
 export function AppSidebar() {
   const location = useLocation();
   const { signOut, user } = useAuth();
+  const { isAdmin } = useUserRole();
   const currentPath = location.pathname;
+
+  const menuItems = [
+    { title: 'Boutique', url: '/', icon: ShoppingBag, adminOnly: false },
+    ...(isAdmin ? [{ title: 'IMCHLEONOR', url: '/game', icon: Gamepad2, adminOnly: true }] : []),
+  ];
 
   return (
     <Sidebar className="border-r border-border bg-card/50 backdrop-blur-xl">
       <SidebarHeader className="p-4 border-b border-border">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-            <Gamepad2 className="w-4 h-4 text-background" />
+            <ShoppingBag className="w-4 h-4 text-background" />
           </div>
           <div>
             <h2 className="font-display text-lg font-bold text-primary neon-text-green">
               LEONOR
             </h2>
-            <p className="text-[10px] text-muted-foreground">Neon Miner</p>
+            <p className="text-[10px] text-muted-foreground">Boutique</p>
           </div>
         </div>
       </SidebarHeader>
@@ -66,6 +69,11 @@ export function AppSidebar() {
                       >
                         <item.icon className={`w-5 h-5 ${isActive ? 'text-primary' : ''}`} />
                         <span className="font-medium">{item.title}</span>
+                        {item.adminOnly && (
+                          <span className="ml-auto text-[10px] bg-destructive/20 text-destructive px-1.5 py-0.5 rounded">
+                            Admin
+                          </span>
+                        )}
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
