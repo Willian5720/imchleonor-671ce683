@@ -80,8 +80,8 @@ export const useImchGame = () => {
         setStatusMessage('Comece a minerar IMCH Coins!');
       }
       
-    } catch (error) {
-      console.error('Error fetching data:', error);
+    } catch {
+      // Error handled silently - user sees loading state
     } finally {
       setIsLoading(false);
     }
@@ -113,8 +113,7 @@ export const useImchGame = () => {
         return true;
       }
       return false;
-    } catch (error) {
-      console.error('Error adding coin:', error);
+    } catch {
       return false;
     }
   }, [threshold, userEmail]);
@@ -158,8 +157,7 @@ export const useImchGame = () => {
         setTransferStatus('failed');
         setStatusMessage(result.data?.error || 'Erro ao processar transferência');
       }
-    } catch (error) {
-      console.error('Error checking transfer:', error);
+    } catch {
       setTransferStatus('failed');
       setStatusMessage('Erro de conexão');
     }
@@ -177,8 +175,7 @@ export const useImchGame = () => {
         return true;
       }
       return false;
-    } catch (error) {
-      console.error('Error updating threshold:', error);
+    } catch {
       return false;
     }
   }, [userEmail]);
@@ -234,8 +231,7 @@ export const useImchGame = () => {
         setStatusMessage(result.data?.message || result.data?.error || 'Falha na transferência');
         return false;
       }
-    } catch (error) {
-      console.error('Error manual transfer:', error);
+    } catch {
       setTransferStatus('failed');
       setStatusMessage('Erro de conexão');
       return false;
@@ -256,8 +252,7 @@ export const useImchGame = () => {
         return true;
       }
       return false;
-    } catch (error) {
-      console.error('Error resetting coins:', error);
+    } catch {
       return false;
     }
   }, [userEmail]);

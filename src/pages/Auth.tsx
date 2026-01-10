@@ -82,8 +82,7 @@ const Auth = () => {
           variant: "destructive",
         });
       }
-    } catch (error) {
-      console.error('Login error:', error);
+    } catch {
       toast({
         title: "Erro",
         description: "Ocorreu um erro ao fazer login.",
@@ -134,8 +133,7 @@ const Auth = () => {
         });
         // Auto login after signup
       }
-    } catch (error) {
-      console.error('Signup error:', error);
+    } catch {
       toast({
         title: "Erro",
         description: "Ocorreu um erro ao criar a conta.",
