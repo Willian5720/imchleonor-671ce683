@@ -7,7 +7,6 @@ import { MainLayout } from "./layouts/MainLayout";
 import Game from "./pages/Game";
 import Boutique from "./pages/Boutique";
 import Auth from "./pages/Auth";
-import Install from "./pages/Install";
 import NotFound from "./pages/NotFound";
 import { AdminRoute } from "./components/AdminRoute";
 
@@ -21,7 +20,6 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/auth" element={<Auth />} />
-          <Route path="/install" element={<Install />} />
           <Route element={<MainLayout />}>
             <Route path="/" element={<Boutique />} />
             <Route path="/boutique" element={<Boutique />} />
