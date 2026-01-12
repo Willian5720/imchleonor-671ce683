@@ -1,9 +1,12 @@
 import { useState } from 'react';
-import { ShoppingBag, Star, Sparkles, Crown, Gem, Zap } from 'lucide-react';
+import { ShoppingBag, Star, Sparkles, Crown, Gem, Zap, Bitcoin } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
+import { CryptoList } from '@/components/crypto/CryptoList';
+import { CryptoTicker } from '@/components/crypto/CryptoTicker';
 
 interface Product {
   id: string;
@@ -96,82 +99,109 @@ export default function Boutique() {
   };
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-8">
-          <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 border border-primary/30">
-            <ShoppingBag className="w-8 h-8 text-primary" />
+    <div className="min-h-screen bg-background">
+      {/* Crypto Ticker */}
+      <CryptoTicker />
+      
+      <div className="p-6">
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="flex items-center gap-3 mb-8">
+            <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 border border-primary/30">
+              <ShoppingBag className="w-8 h-8 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-display font-bold text-primary neon-text-green">
+                Boutique LEONOR
+              </h1>
+              <p className="text-muted-foreground">Melhore sua experiência de mineração</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-3xl font-display font-bold text-primary neon-text-green">
-              Boutique LEONOR
-            </h1>
-            <p className="text-muted-foreground">Melhore sua experiência de mineração</p>
-          </div>
-        </div>
 
-        {/* Filters */}
-        <div className="flex gap-2 mb-6 flex-wrap">
-          {(['all', 'boost', 'cosmetic', 'special'] as const).map((cat) => (
-            <Button
-              key={cat}
-              variant={filter === cat ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFilter(cat)}
-              className="capitalize"
-            >
-              {cat === 'all' ? 'Todos' : categoryLabels[cat]}
-            </Button>
-          ))}
-        </div>
+          {/* Main Tabs */}
+          <Tabs defaultValue="crypto" className="w-full">
+            <TabsList className="grid w-full max-w-md grid-cols-2 mb-6">
+              <TabsTrigger value="crypto" className="flex items-center gap-2">
+                <Bitcoin className="w-4 h-4" />
+                Criptomoedas
+              </TabsTrigger>
+              <TabsTrigger value="shop" className="flex items-center gap-2">
+                <ShoppingBag className="w-4 h-4" />
+                Loja
+              </TabsTrigger>
+            </TabsList>
 
-        {/* Products Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredProducts.map((product) => (
-            <Card 
-              key={product.id}
-              className={`relative overflow-hidden bg-gradient-to-br ${categoryColors[product.category]} border transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-primary/10`}
-            >
-              {product.popular && (
-                <Badge className="absolute top-3 right-3 bg-primary text-primary-foreground">
-                  Popular
-                </Badge>
+            {/* Crypto Tab */}
+            <TabsContent value="crypto" className="mt-0">
+              <CryptoList />
+            </TabsContent>
+
+            {/* Shop Tab */}
+            <TabsContent value="shop" className="mt-0">
+              {/* Filters */}
+              <div className="flex gap-2 mb-6 flex-wrap">
+                {(['all', 'boost', 'cosmetic', 'special'] as const).map((cat) => (
+                  <Button
+                    key={cat}
+                    variant={filter === cat ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setFilter(cat)}
+                    className="capitalize"
+                  >
+                    {cat === 'all' ? 'Todos' : categoryLabels[cat]}
+                  </Button>
+                ))}
+              </div>
+
+              {/* Products Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredProducts.map((product) => (
+                  <Card 
+                    key={product.id}
+                    className={`relative overflow-hidden bg-gradient-to-br ${categoryColors[product.category]} border transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-primary/10`}
+                  >
+                    {product.popular && (
+                      <Badge className="absolute top-3 right-3 bg-primary text-primary-foreground">
+                        Popular
+                      </Badge>
+                    )}
+                    <CardHeader className="text-center pb-2">
+                      <div className="mx-auto p-4 rounded-full bg-background/50 mb-2">
+                        {product.icon}
+                      </div>
+                      <CardTitle className="text-xl">{product.name}</CardTitle>
+                      <Badge variant="outline" className="w-fit mx-auto">
+                        {categoryLabels[product.category]}
+                      </Badge>
+                    </CardHeader>
+                    <CardContent className="text-center">
+                      <CardDescription className="text-sm">
+                        {product.description}
+                      </CardDescription>
+                    </CardContent>
+                    <CardFooter className="flex flex-col gap-3">
+                      <div className="text-2xl font-bold text-primary">
+                        {product.price} <span className="text-sm text-muted-foreground">moedas</span>
+                      </div>
+                      <Button 
+                        className="w-full" 
+                        onClick={() => handlePurchase(product)}
+                      >
+                        Comprar
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+
+              {filteredProducts.length === 0 && (
+                <div className="text-center py-12 text-muted-foreground">
+                  Nenhum produto encontrado nesta categoria.
+                </div>
               )}
-              <CardHeader className="text-center pb-2">
-                <div className="mx-auto p-4 rounded-full bg-background/50 mb-2">
-                  {product.icon}
-                </div>
-                <CardTitle className="text-xl">{product.name}</CardTitle>
-                <Badge variant="outline" className="w-fit mx-auto">
-                  {categoryLabels[product.category]}
-                </Badge>
-              </CardHeader>
-              <CardContent className="text-center">
-                <CardDescription className="text-sm">
-                  {product.description}
-                </CardDescription>
-              </CardContent>
-              <CardFooter className="flex flex-col gap-3">
-                <div className="text-2xl font-bold text-primary">
-                  {product.price} <span className="text-sm text-muted-foreground">moedas</span>
-                </div>
-                <Button 
-                  className="w-full" 
-                  onClick={() => handlePurchase(product)}
-                >
-                  Comprar
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
+            </TabsContent>
+          </Tabs>
         </div>
-
-        {filteredProducts.length === 0 && (
-          <div className="text-center py-12 text-muted-foreground">
-            Nenhum produto encontrado nesta categoria.
-          </div>
-        )}
       </div>
     </div>
   );
