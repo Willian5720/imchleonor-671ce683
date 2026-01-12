@@ -130,6 +130,11 @@
     100% { background-position: 200% 0; }
   }
 
+  @keyframes marquee {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+
   .animate-float-up {
     animation: float-up 1s ease-out forwards;
   }
@@ -146,5 +151,9 @@
     background: linear-gradient(90deg, transparent, hsl(var(--neon-green) / 0.3), transparent);
     background-size: 200% 100%;
     animation: shimmer 2s infinite;
+  }
+
+  .animate-marquee {
+    animation: marquee 20s linear infinite;
   }
 }
