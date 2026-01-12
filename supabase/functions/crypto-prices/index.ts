@@ -101,6 +101,8 @@ const cryptoNames: Record<string, { name: string; icon: string }> = {
   LINKUSDT: { name: 'Chainlink', icon: '⬡' },
 };
 
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
 serve(async (req) => {
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
@@ -109,12 +111,41 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Rate limiting by IP
-  const clientIP = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
-                   req.headers.get('cf-connecting-ip') || 
-                   'unknown';
+  // Authentication check
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return new Response(JSON.stringify({
+      success: false,
+      error: 'Unauthorized - Missing or invalid authorization header',
+    }), { 
+      status: 401, 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    });
+  }
+
+  const supabaseClient = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_ANON_KEY')!,
+    { global: { headers: { Authorization: authHeader } } }
+  );
+
+  const token = authHeader.replace('Bearer ', '');
+  const { data: claimsData, error: claimsError } = await supabaseClient.auth.getClaims(token);
   
-  if (!checkRateLimit(clientIP)) {
+  if (claimsError || !claimsData?.claims) {
+    return new Response(JSON.stringify({
+      success: false,
+      error: 'Unauthorized - Invalid token',
+    }), { 
+      status: 401, 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    });
+  }
+
+  const userId = claimsData.claims.sub;
+
+  // Rate limiting by user ID (more reliable than IP for authenticated users)
+  if (!checkRateLimit(userId)) {
     return new Response(JSON.stringify({
       success: false,
       error: 'Rate limit exceeded. Please try again later.',
@@ -128,7 +159,7 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const { action, symbol } = body;
 
-    console.log("Crypto prices request:", { action, symbol, ip: clientIP });
+    console.log("Crypto prices request:", { action, symbol, userId });
 
     if (action === 'get_single' && symbol) {
       // Validate symbol format (alphanumeric only, max 10 chars)
