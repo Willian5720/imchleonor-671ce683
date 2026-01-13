@@ -1,16 +1,21 @@
 import { useState } from 'react';
-import { RefreshCw, TrendingUp, AlertCircle, Star, Search, SortAsc, SortDesc, Filter } from 'lucide-react';
+import { RefreshCw, TrendingUp, AlertCircle, Star, Search, SortAsc, SortDesc, Filter, LayoutGrid, LineChart, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CryptoTradingCard } from './CryptoTradingCard';
+import { PriceChart } from './PriceChart';
+import { AdvancedOrderForm } from './AdvancedOrderForm';
+import { TradingHistory } from './TradingHistory';
 import { useCryptoPrices, type CryptoPrice } from '@/hooks/useCryptoPrices';
 
 type SortField = 'name' | 'price' | 'change24h' | 'volume24h';
 type SortDirection = 'asc' | 'desc';
+type ViewMode = 'grid' | 'chart' | 'history';
 
 export function CryptoTrading() {
   const { prices, loading, error, lastUpdated, refetch } = useCryptoPrices(15000);
@@ -19,6 +24,8 @@ export function CryptoTrading() {
   const [showFavorites, setShowFavorites] = useState(false);
   const [sortField, setSortField] = useState<SortField>('volume24h');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [selectedCrypto, setSelectedCrypto] = useState<CryptoPrice | null>(null);
 
   const toggleFavorite = (symbol: string) => {
     setFavorites(prev => 
@@ -62,6 +69,9 @@ export function CryptoTrading() {
   const gainers = [...prices].sort((a, b) => b.change24h - a.change24h).slice(0, 3);
   const losers = [...prices].sort((a, b) => a.change24h - b.change24h).slice(0, 3);
 
+  // Auto-select first crypto if none selected
+  const activeCrypto = selectedCrypto || (filteredPrices.length > 0 ? filteredPrices[0] : null);
+
   if (error) {
     return (
       <Alert variant="destructive">
@@ -89,7 +99,14 @@ export function CryptoTrading() {
             </h3>
             <div className="space-y-2">
               {gainers.map((crypto, i) => (
-                <div key={crypto.symbol} className="flex items-center justify-between text-sm">
+                <div 
+                  key={crypto.symbol} 
+                  className="flex items-center justify-between text-sm cursor-pointer hover:bg-green-500/5 p-1 rounded transition-colors"
+                  onClick={() => {
+                    setSelectedCrypto(crypto);
+                    setViewMode('chart');
+                  }}
+                >
                   <div className="flex items-center gap-2">
                     <span className="text-muted-foreground">#{i + 1}</span>
                     <span className="text-xl">{crypto.icon}</span>
@@ -111,7 +128,14 @@ export function CryptoTrading() {
             </h3>
             <div className="space-y-2">
               {losers.map((crypto, i) => (
-                <div key={crypto.symbol} className="flex items-center justify-between text-sm">
+                <div 
+                  key={crypto.symbol} 
+                  className="flex items-center justify-between text-sm cursor-pointer hover:bg-red-500/5 p-1 rounded transition-colors"
+                  onClick={() => {
+                    setSelectedCrypto(crypto);
+                    setViewMode('chart');
+                  }}
+                >
                   <div className="flex items-center gap-2">
                     <span className="text-muted-foreground">#{i + 1}</span>
                     <span className="text-xl">{crypto.icon}</span>
@@ -140,6 +164,37 @@ export function CryptoTrading() {
         </div>
         
         <div className="flex items-center gap-2">
+          {/* View Mode Toggle */}
+          <div className="flex gap-1 p-1 rounded-lg bg-background/50 border border-border/30">
+            <Button
+              variant={viewMode === 'grid' ? 'default' : 'ghost'}
+              size="sm"
+              className="h-8"
+              onClick={() => setViewMode('grid')}
+            >
+              <LayoutGrid className="w-4 h-4 mr-1" />
+              Grid
+            </Button>
+            <Button
+              variant={viewMode === 'chart' ? 'default' : 'ghost'}
+              size="sm"
+              className="h-8"
+              onClick={() => setViewMode('chart')}
+            >
+              <LineChart className="w-4 h-4 mr-1" />
+              Gráfico
+            </Button>
+            <Button
+              variant={viewMode === 'history' ? 'default' : 'ghost'}
+              size="sm"
+              className="h-8"
+              onClick={() => setViewMode('history')}
+            >
+              <Clock className="w-4 h-4 mr-1" />
+              Histórico
+            </Button>
+          </div>
+          
           <Button 
             variant="ghost" 
             size="sm" 
@@ -203,40 +258,79 @@ export function CryptoTrading() {
         </div>
       </div>
 
-      {/* Crypto Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {loading && prices.length === 0 ? (
-          // Loading skeletons
-          Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="p-4 rounded-lg border border-border/50 bg-card">
-              <div className="flex items-center gap-3 mb-4">
-                <Skeleton className="w-10 h-10 rounded-full" />
-                <div>
-                  <Skeleton className="w-24 h-4 mb-1" />
-                  <Skeleton className="w-16 h-3" />
+      {/* Main Content */}
+      {viewMode === 'grid' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {loading && prices.length === 0 ? (
+            Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="p-4 rounded-lg border border-border/50 bg-card">
+                <div className="flex items-center gap-3 mb-4">
+                  <Skeleton className="w-10 h-10 rounded-full" />
+                  <div>
+                    <Skeleton className="w-24 h-4 mb-1" />
+                    <Skeleton className="w-16 h-3" />
+                  </div>
+                </div>
+                <Skeleton className="w-32 h-8 mb-3" />
+                <div className="grid grid-cols-3 gap-2">
+                  <Skeleton className="w-full h-12" />
+                  <Skeleton className="w-full h-12" />
+                  <Skeleton className="w-full h-12" />
                 </div>
               </div>
-              <Skeleton className="w-32 h-8 mb-3" />
-              <div className="grid grid-cols-3 gap-2">
-                <Skeleton className="w-full h-12" />
-                <Skeleton className="w-full h-12" />
-                <Skeleton className="w-full h-12" />
-              </div>
-            </div>
-          ))
-        ) : (
-          filteredPrices.map((crypto) => (
-            <CryptoTradingCard 
-              key={crypto.symbol} 
-              crypto={crypto}
-              onFavorite={toggleFavorite}
-              isFavorite={favorites.includes(crypto.symbol)}
-            />
-          ))
-        )}
-      </div>
+            ))
+          ) : (
+            filteredPrices.map((crypto) => (
+              <CryptoTradingCard 
+                key={crypto.symbol} 
+                crypto={crypto}
+                onFavorite={toggleFavorite}
+                isFavorite={favorites.includes(crypto.symbol)}
+                onViewChart={() => {
+                  setSelectedCrypto(crypto);
+                  setViewMode('chart');
+                }}
+              />
+            ))
+          )}
+        </div>
+      )}
 
-      {filteredPrices.length === 0 && !loading && (
+      {viewMode === 'chart' && activeCrypto && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Chart Column */}
+          <div className="lg:col-span-2 space-y-4">
+            <PriceChart crypto={activeCrypto} />
+            
+            {/* Crypto Selector */}
+            <div className="flex gap-2 flex-wrap">
+              {filteredPrices.slice(0, 10).map((crypto) => (
+                <Button
+                  key={crypto.symbol}
+                  variant={activeCrypto.symbol === crypto.symbol ? 'default' : 'outline'}
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => setSelectedCrypto(crypto)}
+                >
+                  <span>{crypto.icon}</span>
+                  {crypto.symbol}
+                </Button>
+              ))}
+            </div>
+          </div>
+          
+          {/* Order Form Column */}
+          <div className="space-y-4">
+            <AdvancedOrderForm crypto={activeCrypto} />
+          </div>
+        </div>
+      )}
+
+      {viewMode === 'history' && (
+        <TradingHistory />
+      )}
+
+      {filteredPrices.length === 0 && !loading && viewMode === 'grid' && (
         <div className="text-center py-12">
           <p className="text-muted-foreground">
             {showFavorites 

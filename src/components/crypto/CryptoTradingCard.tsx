@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { TrendingUp, TrendingDown, ArrowUpDown, ChevronDown, ChevronUp, Star } from 'lucide-react';
+import { TrendingUp, TrendingDown, ArrowUpDown, ChevronDown, ChevronUp, Star, LineChart } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,9 +12,10 @@ interface CryptoTradingCardProps {
   crypto: CryptoPrice;
   onFavorite?: (symbol: string) => void;
   isFavorite?: boolean;
+  onViewChart?: () => void;
 }
 
-export function CryptoTradingCard({ crypto, onFavorite, isFavorite }: CryptoTradingCardProps) {
+export function CryptoTradingCard({ crypto, onFavorite, isFavorite, onViewChart }: CryptoTradingCardProps) {
   const { toast } = useToast();
   const [expanded, setExpanded] = useState(false);
   const [buyAmount, setBuyAmount] = useState('');
@@ -121,16 +122,29 @@ export function CryptoTradingCard({ crypto, onFavorite, isFavorite }: CryptoTrad
             <div className="text-2xl font-bold text-foreground">
               {formatPrice(crypto.price)}
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setExpanded(!expanded)}
-              className="text-muted-foreground"
-            >
-              <ArrowUpDown className="w-4 h-4 mr-1" />
-              Trade
-              {expanded ? <ChevronUp className="w-4 h-4 ml-1" /> : <ChevronDown className="w-4 h-4 ml-1" />}
-            </Button>
+            <div className="flex gap-2">
+              {onViewChart && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onViewChart}
+                  className="text-muted-foreground"
+                >
+                  <LineChart className="w-4 h-4 mr-1" />
+                  Gráfico
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setExpanded(!expanded)}
+                className="text-muted-foreground"
+              >
+                <ArrowUpDown className="w-4 h-4 mr-1" />
+                Trade
+                {expanded ? <ChevronUp className="w-4 h-4 ml-1" /> : <ChevronDown className="w-4 h-4 ml-1" />}
+              </Button>
+            </div>
           </div>
           
           {/* Stats */}
