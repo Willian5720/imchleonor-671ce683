@@ -1,7 +1,8 @@
-import { Gamepad2, LogOut, ShoppingBag } from 'lucide-react';
+import { Gamepad2, LogOut, ShoppingBag, User, Coins } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
+import { useUserProfile } from '@/hooks/useUserProfile';
 import {
   Sidebar,
   SidebarContent,
@@ -15,30 +16,43 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export function AppSidebar() {
   const location = useLocation();
   const { signOut, user } = useAuth();
   const { isAdmin } = useUserRole();
+  const { profile } = useUserProfile();
   const currentPath = location.pathname;
 
   const menuItems = [
-    { title: 'Boutique', url: '/', icon: ShoppingBag, adminOnly: false },
+    { title: 'Casa da Cripto', url: '/', icon: ShoppingBag, adminOnly: false },
+    { title: 'Meu Perfil', url: '/profile', icon: User, adminOnly: false },
     ...(isAdmin ? [{ title: 'IMCHLEONOR', url: '/game', icon: Gamepad2, adminOnly: true }] : []),
   ];
+
+  const getInitials = () => {
+    if (profile?.display_name) {
+      return profile.display_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    }
+    if (user?.email) {
+      return user.email.slice(0, 2).toUpperCase();
+    }
+    return 'U';
+  };
 
   return (
     <Sidebar className="border-r border-border bg-card/50 backdrop-blur-xl">
       <SidebarHeader className="p-4 border-b border-border">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-            <ShoppingBag className="w-4 h-4 text-background" />
+            <Coins className="w-4 h-4 text-background" />
           </div>
           <div>
-            <h2 className="font-display text-lg font-bold text-primary neon-text-green">
-              LEONOR
+            <h2 className="font-display text-sm font-bold text-primary neon-text-green">
+              CASA DA CRIPTO
             </h2>
-            <p className="text-[10px] text-muted-foreground">Boutique</p>
+            <p className="text-[10px] text-muted-foreground">IMCH</p>
           </div>
         </div>
       </SidebarHeader>
@@ -86,9 +100,30 @@ export function AppSidebar() {
 
       <SidebarFooter className="p-4 border-t border-border">
         <div className="flex flex-col gap-3">
-          <div className="text-xs text-muted-foreground truncate">
-            {user?.email}
-          </div>
+          {/* User Profile Summary */}
+          <NavLink 
+            to="/profile" 
+            className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors"
+          >
+            <Avatar className="w-10 h-10 border border-primary/30">
+              <AvatarImage src={profile?.avatar_url || undefined} />
+              <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                {getInitials()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-foreground truncate">
+                {profile?.display_name || user?.email?.split('@')[0]}
+              </p>
+              <div className="flex items-center gap-1">
+                <Coins className="w-3 h-3 text-primary" />
+                <span className="text-xs text-primary font-medium">
+                  {profile?.coins?.toLocaleString() || 0}
+                </span>
+              </div>
+            </div>
+          </NavLink>
+          
           <Button
             onClick={signOut}
             variant="outline"

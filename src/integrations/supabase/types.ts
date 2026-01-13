@@ -100,24 +100,36 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
+          bio: string | null
           coins: number
           created_at: string
+          display_name: string | null
           email: string | null
           id: string
+          phone: string | null
           updated_at: string
         }
         Insert: {
+          avatar_url?: string | null
+          bio?: string | null
           coins?: number
           created_at?: string
+          display_name?: string | null
           email?: string | null
           id: string
+          phone?: string | null
           updated_at?: string
         }
         Update: {
+          avatar_url?: string | null
+          bio?: string | null
           coins?: number
           created_at?: string
+          display_name?: string | null
           email?: string | null
           id?: string
+          phone?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -143,17 +155,61 @@ export type Database = {
         }
         Relationships: []
       }
+      user_transfers: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          from_user_id: string
+          id: string
+          note: string | null
+          status: string
+          to_user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: string
+          from_user_id: string
+          id?: string
+          note?: string | null
+          status?: string
+          to_user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          from_user_id?: string
+          id?: string
+          note?: string | null
+          status?: string
+          to_user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      get_user_balance: { Args: { user_id: string }; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
+      }
+      transfer_between_users: {
+        Args: {
+          p_amount: number
+          p_currency?: string
+          p_from_user_id: string
+          p_note?: string
+          p_to_user_id: string
+        }
+        Returns: Json
       }
     }
     Enums: {

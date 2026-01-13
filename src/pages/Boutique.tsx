@@ -19,7 +19,7 @@ export default function Boutique() {
             </div>
             <div>
               <h1 className="text-3xl font-display font-bold text-primary neon-text-green">
-                Boutique LEONOR
+                CASA DA CRIPTO IMCH
               </h1>
               <p className="text-muted-foreground">Exchange de Criptomoedas</p>
             </div>
