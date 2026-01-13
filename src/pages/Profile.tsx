@@ -1,0 +1,209 @@
+import { User, Send, Clock, Settings, LogOut, Moon, Sun, Bell, Shield, HelpCircle } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { UserProfileCard } from '@/components/profile/UserProfileCard';
+import { SendTransferForm } from '@/components/profile/SendTransferForm';
+import { TransferHistoryList } from '@/components/profile/TransferHistoryList';
+import { useAuth } from '@/hooks/useAuth';
+
+export default function Profile() {
+  const { signOut, user } = useAuth();
+
+  return (
+    <div className="min-h-screen bg-background p-6">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-8">
+          <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 border border-primary/30">
+            <User className="w-8 h-8 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-display font-bold text-primary neon-text-green">
+              Meu Perfil
+            </h1>
+            <p className="text-muted-foreground">Gerencie suas configurações e transferências</p>
+          </div>
+        </div>
+
+        {/* Main Tabs */}
+        <Tabs defaultValue="profile" className="w-full">
+          <TabsList className="grid w-full max-w-lg grid-cols-4 mb-6">
+            <TabsTrigger value="profile" className="flex items-center gap-2">
+              <User className="w-4 h-4" />
+              <span className="hidden sm:inline">Perfil</span>
+            </TabsTrigger>
+            <TabsTrigger value="transfer" className="flex items-center gap-2">
+              <Send className="w-4 h-4" />
+              <span className="hidden sm:inline">Enviar</span>
+            </TabsTrigger>
+            <TabsTrigger value="history" className="flex items-center gap-2">
+              <Clock className="w-4 h-4" />
+              <span className="hidden sm:inline">Histórico</span>
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="flex items-center gap-2">
+              <Settings className="w-4 h-4" />
+              <span className="hidden sm:inline">Config</span>
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Profile Tab */}
+          <TabsContent value="profile" className="mt-0">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <UserProfileCard />
+              
+              {/* Quick Stats */}
+              <Card className="bg-gradient-to-br from-card/80 to-card border-border/50">
+                <CardHeader>
+                  <CardTitle className="text-lg">Estatísticas</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 rounded-lg bg-gradient-to-br from-green-500/10 to-green-600/5 border border-green-500/20">
+                      <p className="text-xs text-muted-foreground mb-1">Total Recebido</p>
+                      <p className="text-xl font-bold text-green-500">--</p>
+                    </div>
+                    <div className="p-4 rounded-lg bg-gradient-to-br from-red-500/10 to-red-600/5 border border-red-500/20">
+                      <p className="text-xs text-muted-foreground mb-1">Total Enviado</p>
+                      <p className="text-xl font-bold text-red-500">--</p>
+                    </div>
+                  </div>
+                  
+                  <div className="p-4 rounded-lg bg-background/50">
+                    <p className="text-sm text-muted-foreground mb-2">Conta criada em</p>
+                    <p className="text-foreground">
+                      {user?.created_at 
+                        ? new Date(user.created_at).toLocaleDateString('pt-BR', { 
+                            day: '2-digit', 
+                            month: 'long', 
+                            year: 'numeric' 
+                          })
+                        : '--'}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Transfer Tab */}
+          <TabsContent value="transfer" className="mt-0">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <SendTransferForm />
+              <TransferHistoryList />
+            </div>
+          </TabsContent>
+
+          {/* History Tab */}
+          <TabsContent value="history" className="mt-0">
+            <TransferHistoryList />
+          </TabsContent>
+
+          {/* Settings Tab */}
+          <TabsContent value="settings" className="mt-0">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Appearance */}
+              <Card className="bg-gradient-to-br from-card/80 to-card border-border/50">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Moon className="w-5 h-5" />
+                    Aparência
+                  </CardTitle>
+                  <CardDescription>
+                    Personalize a aparência do aplicativo
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Sun className="w-4 h-4 text-muted-foreground" />
+                      <Label>Tema Escuro</Label>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Bell className="w-4 h-4 text-muted-foreground" />
+                      <Label>Notificações</Label>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Security */}
+              <Card className="bg-gradient-to-br from-card/80 to-card border-border/50">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Shield className="w-5 h-5" />
+                    Segurança
+                  </CardTitle>
+                  <CardDescription>
+                    Configurações de segurança da conta
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="p-3 rounded-lg bg-background/50">
+                    <p className="text-sm font-medium mb-1">Email</p>
+                    <p className="text-muted-foreground text-sm">{user?.email}</p>
+                  </div>
+                  <Button variant="outline" className="w-full" disabled>
+                    Alterar Senha
+                  </Button>
+                  <Button variant="outline" className="w-full" disabled>
+                    Autenticação em 2 Fatores
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Help & Support */}
+              <Card className="bg-gradient-to-br from-card/80 to-card border-border/50">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <HelpCircle className="w-5 h-5" />
+                    Ajuda
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Button variant="outline" className="w-full justify-start">
+                    Central de Ajuda
+                  </Button>
+                  <Button variant="outline" className="w-full justify-start">
+                    Termos de Uso
+                  </Button>
+                  <Button variant="outline" className="w-full justify-start">
+                    Política de Privacidade
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Logout */}
+              <Card className="bg-gradient-to-br from-destructive/5 to-card border-destructive/20">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2 text-destructive">
+                    <LogOut className="w-5 h-5" />
+                    Sair da Conta
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Button 
+                    variant="destructive" 
+                    className="w-full"
+                    onClick={signOut}
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Sair
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </div>
+  );
+}
