@@ -1,4 +1,4 @@
-import { User, Send, Clock, Settings, LogOut, Moon, Sun, Bell, Shield, HelpCircle, Activity } from 'lucide-react';
+import { User, Send, Clock, Settings, LogOut, Moon, Sun, Bell, HelpCircle, Activity } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { UserProfileCard } from '@/components/profile/UserProfileCard';
 import { SendTransferForm } from '@/components/profile/SendTransferForm';
 import { TransferHistoryList } from '@/components/profile/TransferHistoryList';
 import { AuditLogList } from '@/components/profile/AuditLogList';
+import { TwoFactorAuth } from '@/components/profile/TwoFactorAuth';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuditLog } from '@/hooks/useAuditLog';
 
@@ -152,30 +153,8 @@ export default function Profile() {
                 </CardContent>
               </Card>
 
-              {/* Security */}
-              <Card className="bg-gradient-to-br from-card/80 to-card border-border/50">
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Shield className="w-5 h-5" />
-                    Segurança
-                  </CardTitle>
-                  <CardDescription>
-                    Configurações de segurança da conta
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="p-3 rounded-lg bg-background/50">
-                    <p className="text-sm font-medium mb-1">Email</p>
-                    <p className="text-muted-foreground text-sm">{user?.email}</p>
-                  </div>
-                  <Button variant="outline" className="w-full" disabled>
-                    Alterar Senha
-                  </Button>
-                  <Button variant="outline" className="w-full" disabled>
-                    Autenticação em 2 Fatores
-                  </Button>
-                </CardContent>
-              </Card>
+              {/* Two Factor Auth */}
+              <TwoFactorAuth />
 
               {/* Help & Support */}
               <Card className="bg-gradient-to-br from-card/80 to-card border-border/50">

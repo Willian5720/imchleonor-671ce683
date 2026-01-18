@@ -7,6 +7,7 @@ import { MainLayout } from "./layouts/MainLayout";
 import Game from "./pages/Game";
 import Boutique from "./pages/Boutique";
 import Profile from "./pages/Profile";
+import AdminAudit from "./pages/AdminAudit";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import { AdminRoute } from "./components/AdminRoute";
@@ -30,6 +31,14 @@ const App = () => (
               element={
                 <AdminRoute>
                   <Game />
+                </AdminRoute>
+              } 
+            />
+            <Route 
+              path="/admin/audit" 
+              element={
+                <AdminRoute>
+                  <AdminAudit />
                 </AdminRoute>
               } 
             />
