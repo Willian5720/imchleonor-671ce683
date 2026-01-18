@@ -1,4 +1,4 @@
-import { Gamepad2, LogOut, ShoppingBag, User, Coins } from 'lucide-react';
+import { Gamepad2, LogOut, ShoppingBag, User, Coins, Shield } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -28,7 +28,10 @@ export function AppSidebar() {
   const menuItems = [
     { title: 'Casa da Cripto', url: '/', icon: ShoppingBag, adminOnly: false },
     { title: 'Meu Perfil', url: '/profile', icon: User, adminOnly: false },
-    ...(isAdmin ? [{ title: 'IMCHLEONOR', url: '/game', icon: Gamepad2, adminOnly: true }] : []),
+    ...(isAdmin ? [
+      { title: 'IMCHLEONOR', url: '/game', icon: Gamepad2, adminOnly: true },
+      { title: 'Auditoria', url: '/admin/audit', icon: Shield, adminOnly: true },
+    ] : []),
   ];
 
   const getInitials = () => {
