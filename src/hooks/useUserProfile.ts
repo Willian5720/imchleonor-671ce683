@@ -137,14 +137,18 @@ export function useUserTransfers() {
     if (!user?.id) return { success: false, error: 'Not authenticated' };
 
     try {
-      // Find recipient by email
-      const { data: recipient, error: recipientError } = await supabase
-        .from('profiles')
-        .select('id, email')
-        .eq('email', toEmail)
-        .maybeSingle();
+      // Use secure edge function to find recipient by email
+      const { data: searchResult, error: searchError } = await supabase.functions.invoke('search-users', {
+        body: { email: toEmail },
+      });
 
-      if (recipientError) throw recipientError;
+      if (searchError) throw searchError;
+      
+      // Find exact match from search results
+      const recipient = searchResult?.users?.find(
+        (u: { email: string | null }) => u.email?.toLowerCase() === toEmail.toLowerCase()
+      );
+      
       if (!recipient) return { success: false, error: 'Destinatário não encontrado' };
       if (recipient.id === user.id) return { success: false, error: 'Não é possível transferir para você mesmo' };
 
@@ -181,22 +185,30 @@ export function useUserTransfers() {
   };
 }
 
+export interface SearchUserResult {
+  id: string;
+  email: string | null;
+  email_hint: string | null;
+  display_name: string | null;
+  avatar_url: string | null;
+}
+
 export function useSearchUsers() {
   const [searching, setSearching] = useState(false);
 
-  const searchByEmail = async (email: string) => {
+  const searchByEmail = async (email: string): Promise<SearchUserResult[]> => {
     if (!email || email.length < 3) return [];
 
     try {
       setSearching(true);
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, email, display_name, avatar_url')
-        .ilike('email', `%${email}%`)
-        .limit(5);
+      
+      // Use secure edge function that masks email addresses
+      const { data, error } = await supabase.functions.invoke('search-users', {
+        body: { email },
+      });
 
       if (error) throw error;
-      return data || [];
+      return data?.users || [];
     } catch {
       return [];
     } finally {
