@@ -1,4 +1,4 @@
-import { User, Send, Clock, Settings, LogOut, Moon, Sun, Bell, Shield, HelpCircle } from 'lucide-react';
+import { User, Send, Clock, Settings, LogOut, Moon, Sun, Bell, Shield, HelpCircle, Activity } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,10 +8,18 @@ import { Separator } from '@/components/ui/separator';
 import { UserProfileCard } from '@/components/profile/UserProfileCard';
 import { SendTransferForm } from '@/components/profile/SendTransferForm';
 import { TransferHistoryList } from '@/components/profile/TransferHistoryList';
+import { AuditLogList } from '@/components/profile/AuditLogList';
 import { useAuth } from '@/hooks/useAuth';
+import { useAuditLog } from '@/hooks/useAuditLog';
 
 export default function Profile() {
   const { signOut, user } = useAuth();
+  const { logAction } = useAuditLog();
+
+  const handleSignOut = async () => {
+    await logAction('logout', 'auth');
+    signOut();
+  };
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -31,7 +39,7 @@ export default function Profile() {
 
         {/* Main Tabs */}
         <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="grid w-full max-w-lg grid-cols-4 mb-6">
+          <TabsList className="grid w-full max-w-2xl grid-cols-5 mb-6">
             <TabsTrigger value="profile" className="flex items-center gap-2">
               <User className="w-4 h-4" />
               <span className="hidden sm:inline">Perfil</span>
@@ -43,6 +51,10 @@ export default function Profile() {
             <TabsTrigger value="history" className="flex items-center gap-2">
               <Clock className="w-4 h-4" />
               <span className="hidden sm:inline">Histórico</span>
+            </TabsTrigger>
+            <TabsTrigger value="audit" className="flex items-center gap-2">
+              <Activity className="w-4 h-4" />
+              <span className="hidden sm:inline">Atividade</span>
             </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <Settings className="w-4 h-4" />
@@ -100,6 +112,11 @@ export default function Profile() {
           {/* History Tab */}
           <TabsContent value="history" className="mt-0">
             <TransferHistoryList />
+          </TabsContent>
+
+          {/* Audit Log Tab */}
+          <TabsContent value="audit" className="mt-0">
+            <AuditLogList />
           </TabsContent>
 
           {/* Settings Tab */}
@@ -193,7 +210,7 @@ export default function Profile() {
                   <Button 
                     variant="destructive" 
                     className="w-full"
-                    onClick={signOut}
+                    onClick={handleSignOut}
                   >
                     <LogOut className="w-4 h-4 mr-2" />
                     Sair

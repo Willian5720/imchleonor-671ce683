@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Lock, Mail, Loader2, User, ArrowRight } from 'lucide-react';
 import { z } from 'zod';
+import { useAuditLog } from '@/hooks/useAuditLog';
 
 const authSchema = z.object({
   email: z.string().trim().email({ message: "Email inválido" }).max(255),
@@ -31,6 +32,37 @@ const Auth = () => {
   const [checkingSession, setCheckingSession] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { logAction } = useAuditLog();
+
+  const logLoginAction = useCallback(async (userId: string) => {
+    try {
+      const jsonDetails = JSON.parse(JSON.stringify({ method: 'email' }));
+      await supabase.rpc('log_user_action', {
+        p_user_id: userId,
+        p_action: 'login',
+        p_entity_type: 'auth',
+        p_entity_id: null,
+        p_details: jsonDetails
+      });
+    } catch (err) {
+      console.error('Error logging login:', err);
+    }
+  }, []);
+
+  const logSignupAction = useCallback(async (userId: string, userEmail: string) => {
+    try {
+      const jsonDetails = JSON.parse(JSON.stringify({ email: userEmail }));
+      await supabase.rpc('log_user_action', {
+        p_user_id: userId,
+        p_action: 'signup',
+        p_entity_type: 'auth',
+        p_entity_id: null,
+        p_details: jsonDetails
+      });
+    } catch (err) {
+      console.error('Error logging signup:', err);
+    }
+  }, []);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -68,7 +100,7 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       });
@@ -81,6 +113,9 @@ const Auth = () => {
             : error.message,
           variant: "destructive",
         });
+      } else if (data.user) {
+        // Log the login action
+        await logLoginAction(data.user.id);
       }
     } catch {
       toast({
@@ -109,7 +144,7 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
@@ -131,7 +166,10 @@ const Auth = () => {
           title: "Cadastro realizado!",
           description: "Sua conta foi criada com sucesso. Você já pode acessar a loja.",
         });
-        // Auto login after signup
+        // Log the signup action
+        if (data.user) {
+          await logSignupAction(data.user.id, email.trim());
+        }
       }
     } catch {
       toast({

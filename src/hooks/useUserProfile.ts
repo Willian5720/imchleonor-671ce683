@@ -80,6 +80,18 @@ export function useUserProfile() {
 
       if (updateError) throw updateError;
 
+      // Log profile update
+      const jsonDetails = JSON.parse(JSON.stringify({ 
+        fields_updated: Object.keys(updates).filter(k => updates[k as keyof UserProfile] !== undefined) 
+      }));
+      await supabase.rpc('log_user_action', {
+        p_user_id: user.id,
+        p_action: 'profile_update',
+        p_entity_type: 'profile',
+        p_entity_id: user.id,
+        p_details: jsonDetails
+      });
+
       await fetchProfile();
       return { success: true };
     } catch (err) {
@@ -168,6 +180,21 @@ export function useUserTransfers() {
       if (!result.success) {
         return { success: false, error: result.error || 'Transfer failed' };
       }
+
+      // Log the transfer
+      const jsonDetails = JSON.parse(JSON.stringify({ 
+        to_email: toEmail, 
+        amount, 
+        currency: 'COINS',
+        note: note || null 
+      }));
+      await supabase.rpc('log_user_action', {
+        p_user_id: user.id,
+        p_action: 'transfer_sent',
+        p_entity_type: 'transfer',
+        p_entity_id: result.transfer_id || null,
+        p_details: jsonDetails
+      });
 
       await fetchTransfers();
       return { success: true, transfer_id: result.transfer_id, new_balance: result.new_balance };
