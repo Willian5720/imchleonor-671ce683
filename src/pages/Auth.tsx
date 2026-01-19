@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Lock, Mail, Loader2, User, ArrowRight } from 'lucide-react';
 import { z } from 'zod';
-import { useAuditLog } from '@/hooks/useAuditLog';
+import { TwoFactorVerification } from '@/components/auth/TwoFactorVerification';
+import { TwoFactorSetup } from '@/components/auth/TwoFactorSetup';
 
 const authSchema = z.object({
   email: z.string().trim().email({ message: "Email inválido" }).max(255),
@@ -22,8 +23,10 @@ const signupSchema = authSchema.extend({
   path: ["confirmPassword"],
 });
 
+type AuthStep = 'login' | 'signup' | '2fa-verify' | '2fa-setup';
+
 const Auth = () => {
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [step, setStep] = useState<AuthStep>('login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -32,7 +35,6 @@ const Auth = () => {
   const [checkingSession, setCheckingSession] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { logAction } = useAuditLog();
 
   const logLoginAction = useCallback(async (userId: string) => {
     try {
@@ -64,25 +66,73 @@ const Auth = () => {
     }
   }, []);
 
+  const check2FAAndNavigate = useCallback(async () => {
+    try {
+      const { data: factorsData, error: factorsError } = await supabase.auth.mfa.listFactors();
+      
+      if (factorsError) {
+        console.error('Error checking MFA factors:', factorsError);
+        navigate('/', { replace: true });
+        return;
+      }
+
+      const verifiedFactor = factorsData.totp.find(f => f.status === 'verified');
+      
+      if (verifiedFactor) {
+        // User has 2FA enabled, check if current session has AAL2
+        const { data: aalData, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+        
+        if (aalError) {
+          console.error('Error checking AAL:', aalError);
+          navigate('/', { replace: true });
+          return;
+        }
+
+        if (aalData.currentLevel === 'aal1' && aalData.nextLevel === 'aal2') {
+          // User needs to verify 2FA
+          setStep('2fa-verify');
+          setCheckingSession(false);
+          return;
+        }
+        
+        // User is fully authenticated with 2FA
+        navigate('/', { replace: true });
+      } else {
+        // User doesn't have 2FA set up - require setup
+        setStep('2fa-setup');
+        setCheckingSession(false);
+      }
+    } catch (error) {
+      console.error('Error in check2FAAndNavigate:', error);
+      navigate('/', { replace: true });
+    }
+  }, [navigate]);
+
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (session) {
-          navigate('/', { replace: true });
+      async (event, session) => {
+        if (session && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+          // Don't redirect automatically, check 2FA first
+          if (step === 'login' || step === 'signup') {
+            await check2FAAndNavigate();
+          }
+        } else if (!session) {
+          setStep('login');
+          setCheckingSession(false);
         }
-        setCheckingSession(false);
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session) {
-        navigate('/', { replace: true });
+        await check2FAAndNavigate();
+      } else {
+        setCheckingSession(false);
       }
-      setCheckingSession(false);
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, check2FAAndNavigate, step]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,6 +166,7 @@ const Auth = () => {
       } else if (data.user) {
         // Log the login action
         await logLoginAction(data.user.id);
+        // 2FA check will be handled by auth state change
       }
     } catch {
       toast({
@@ -164,12 +215,13 @@ const Auth = () => {
       } else {
         toast({
           title: "Cadastro realizado!",
-          description: "Sua conta foi criada com sucesso. Você já pode acessar a loja.",
+          description: "Sua conta foi criada. Agora configure a autenticação 2FA.",
         });
         // Log the signup action
         if (data.user) {
           await logSignupAction(data.user.id, email.trim());
         }
+        // 2FA setup will be handled by auth state change
       }
     } catch {
       toast({
@@ -190,8 +242,18 @@ const Auth = () => {
   };
 
   const toggleMode = () => {
-    setIsSignUp(!isSignUp);
+    setStep(step === 'signup' ? 'login' : 'signup');
     resetForm();
+  };
+
+  const handle2FASuccess = () => {
+    navigate('/', { replace: true });
+  };
+
+  const handle2FACancel = () => {
+    setStep('login');
+    resetForm();
+    setCheckingSession(false);
   };
 
   if (checkingSession) {
@@ -201,6 +263,10 @@ const Auth = () => {
       </div>
     );
   }
+
+  const isSignUp = step === 'signup';
+  const is2FAVerify = step === '2fa-verify';
+  const is2FASetup = step === '2fa-setup';
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 relative overflow-hidden">
@@ -217,126 +283,148 @@ const Auth = () => {
           <h1 className="text-3xl font-bold font-display neon-text-green">
             LEONOR
           </h1>
-          <p className="text-muted-foreground mt-2">
-            {isSignUp ? 'Crie sua conta para acessar a loja' : 'Acesse sua conta'}
-          </p>
+          {!is2FAVerify && !is2FASetup && (
+            <p className="text-muted-foreground mt-2">
+              {isSignUp ? 'Crie sua conta para acessar a loja' : 'Acesse sua conta'}
+            </p>
+          )}
         </div>
 
-        {/* Form */}
-        <form onSubmit={isSignUp ? handleSignUp : handleLogin} className="space-y-5">
-          {isSignUp && (
-            <div className="space-y-2">
-              <Label htmlFor="name" className="text-foreground">
-                Nome
-              </Label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  id="name"
-                  type="text"
-                  placeholder="Seu nome"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="pl-10 bg-background/50 border-border focus:border-primary"
-                  disabled={loading}
-                  maxLength={100}
-                />
+        {/* 2FA Verification Step */}
+        {is2FAVerify && (
+          <TwoFactorVerification 
+            onSuccess={handle2FASuccess} 
+            onCancel={handle2FACancel} 
+          />
+        )}
+
+        {/* 2FA Setup Step */}
+        {is2FASetup && (
+          <TwoFactorSetup 
+            onSuccess={handle2FASuccess} 
+            onCancel={handle2FACancel} 
+          />
+        )}
+
+        {/* Login/Signup Form */}
+        {!is2FAVerify && !is2FASetup && (
+          <>
+            <form onSubmit={isSignUp ? handleSignUp : handleLogin} className="space-y-5">
+              {isSignUp && (
+                <div className="space-y-2">
+                  <Label htmlFor="name" className="text-foreground">
+                    Nome
+                  </Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="name"
+                      type="text"
+                      placeholder="Seu nome"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="pl-10 bg-background/50 border-border focus:border-primary"
+                      disabled={loading}
+                      maxLength={100}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-foreground">
+                  Email
+                </Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="seu@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="pl-10 bg-background/50 border-border focus:border-primary"
+                    disabled={loading}
+                    maxLength={255}
+                  />
+                </div>
               </div>
-            </div>
-          )}
 
-          <div className="space-y-2">
-            <Label htmlFor="email" className="text-foreground">
-              Email
-            </Label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                id="email"
-                type="email"
-                placeholder="seu@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="pl-10 bg-background/50 border-border focus:border-primary"
-                disabled={loading}
-                maxLength={255}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="password" className="text-foreground">
-              Senha
-            </Label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="pl-10 bg-background/50 border-border focus:border-primary"
-                disabled={loading}
-                maxLength={100}
-              />
-            </div>
-          </div>
-
-          {isSignUp && (
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword" className="text-foreground">
-                Confirmar Senha
-              </Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  placeholder="••••••••"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="pl-10 bg-background/50 border-border focus:border-primary"
-                  disabled={loading}
-                  maxLength={100}
-                />
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-foreground">
+                  Senha
+                </Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pl-10 bg-background/50 border-border focus:border-primary"
+                    disabled={loading}
+                    maxLength={100}
+                  />
+                </div>
               </div>
+
+              {isSignUp && (
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword" className="text-foreground">
+                    Confirmar Senha
+                  </Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      placeholder="••••••••"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="pl-10 bg-background/50 border-border focus:border-primary"
+                      disabled={loading}
+                      maxLength={100}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-display neon-glow-green"
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    {isSignUp ? 'Criando conta...' : 'Entrando...'}
+                  </>
+                ) : (
+                  <>
+                    {isSignUp ? 'Criar Conta' : 'Entrar'}
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </>
+                )}
+              </Button>
+            </form>
+
+            {/* Toggle between login/signup */}
+            <div className="mt-6 text-center">
+              <p className="text-muted-foreground text-sm">
+                {isSignUp ? 'Já tem uma conta?' : 'Não tem uma conta?'}
+              </p>
+              <Button
+                variant="link"
+                onClick={toggleMode}
+                className="text-primary hover:text-primary/80 p-0 h-auto font-medium"
+                disabled={loading}
+              >
+                {isSignUp ? 'Fazer login' : 'Criar conta'}
+              </Button>
             </div>
-          )}
-
-          <Button
-            type="submit"
-            className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-display neon-glow-green"
-            disabled={loading}
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                {isSignUp ? 'Criando conta...' : 'Entrando...'}
-              </>
-            ) : (
-              <>
-                {isSignUp ? 'Criar Conta' : 'Entrar'}
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </>
-            )}
-          </Button>
-        </form>
-
-        {/* Toggle between login/signup */}
-        <div className="mt-6 text-center">
-          <p className="text-muted-foreground text-sm">
-            {isSignUp ? 'Já tem uma conta?' : 'Não tem uma conta?'}
-          </p>
-          <Button
-            variant="link"
-            onClick={toggleMode}
-            className="text-primary hover:text-primary/80 p-0 h-auto font-medium"
-            disabled={loading}
-          >
-            {isSignUp ? 'Fazer login' : 'Criar conta'}
-          </Button>
-        </div>
+          </>
+        )}
       </div>
 
       {/* Footer */}
