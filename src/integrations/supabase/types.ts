@@ -50,6 +50,161 @@ export type Database = {
         }
         Relationships: []
       }
+      blockchain_ledger: {
+        Row: {
+          amount: number
+          block_number: number
+          confirmations: number | null
+          confirmed_at: string | null
+          created_at: string
+          currency: string
+          current_hash: string
+          deriv_transaction_id: string | null
+          from_address: string | null
+          id: string
+          metadata: Json | null
+          previous_hash: string
+          status: string
+          to_address: string | null
+          transaction_type: string
+          user_id: string | null
+        }
+        Insert: {
+          amount: number
+          block_number?: number
+          confirmations?: number | null
+          confirmed_at?: string | null
+          created_at?: string
+          currency?: string
+          current_hash: string
+          deriv_transaction_id?: string | null
+          from_address?: string | null
+          id?: string
+          metadata?: Json | null
+          previous_hash?: string
+          status?: string
+          to_address?: string | null
+          transaction_type: string
+          user_id?: string | null
+        }
+        Update: {
+          amount?: number
+          block_number?: number
+          confirmations?: number | null
+          confirmed_at?: string | null
+          created_at?: string
+          currency?: string
+          current_hash?: string
+          deriv_transaction_id?: string | null
+          from_address?: string | null
+          id?: string
+          metadata?: Json | null
+          previous_hash?: string
+          status?: string
+          to_address?: string | null
+          transaction_type?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      deriv_accounts: {
+        Row: {
+          balance: number | null
+          created_at: string
+          currency: string | null
+          deriv_account_id: string
+          deriv_email: string | null
+          id: string
+          is_active: boolean | null
+          is_virtual: boolean | null
+          last_sync_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance?: number | null
+          created_at?: string
+          currency?: string | null
+          deriv_account_id: string
+          deriv_email?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_virtual?: boolean | null
+          last_sync_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance?: number | null
+          created_at?: string
+          currency?: string | null
+          deriv_account_id?: string
+          deriv_email?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_virtual?: boolean | null
+          last_sync_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      deriv_transactions: {
+        Row: {
+          amount_imch: number
+          amount_usd: number
+          blockchain_ledger_id: string | null
+          completed_at: string | null
+          created_at: string
+          deriv_account_id: string
+          deriv_reference: string | null
+          error_message: string | null
+          exchange_rate: number
+          id: string
+          status: string
+          transaction_type: string
+          user_id: string
+        }
+        Insert: {
+          amount_imch: number
+          amount_usd: number
+          blockchain_ledger_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          deriv_account_id: string
+          deriv_reference?: string | null
+          error_message?: string | null
+          exchange_rate: number
+          id?: string
+          status?: string
+          transaction_type: string
+          user_id: string
+        }
+        Update: {
+          amount_imch?: number
+          amount_usd?: number
+          blockchain_ledger_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          deriv_account_id?: string
+          deriv_reference?: string | null
+          error_message?: string | null
+          exchange_rate?: number
+          id?: string
+          status?: string
+          transaction_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deriv_transactions_blockchain_ledger_id_fkey"
+            columns: ["blockchain_ledger_id"]
+            isOneToOne: false
+            referencedRelation: "blockchain_ledger"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       imch_balances: {
         Row: {
           admin_email: string
@@ -229,6 +384,27 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_blockchain_transaction: {
+        Args: {
+          p_amount: number
+          p_currency?: string
+          p_deriv_transaction_id?: string
+          p_from_address?: string
+          p_metadata?: Json
+          p_to_address?: string
+          p_transaction_type: string
+          p_user_id: string
+        }
+        Returns: string
+      }
+      generate_block_hash: {
+        Args: {
+          p_block_number: number
+          p_previous_hash: string
+          p_transaction_data: Json
+        }
+        Returns: string
+      }
       get_user_balance: { Args: { user_id: string }; Returns: number }
       has_role: {
         Args: {
