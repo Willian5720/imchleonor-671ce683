@@ -7,10 +7,12 @@ import { MainLayout } from "./layouts/MainLayout";
 import Game from "./pages/Game";
 import Boutique from "./pages/Boutique";
 import Profile from "./pages/Profile";
+import Blockchain from "./pages/Blockchain";
 import AdminAudit from "./pages/AdminAudit";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import { AdminRoute } from "./components/AdminRoute";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -26,6 +28,14 @@ const App = () => (
             <Route path="/" element={<Boutique />} />
             <Route path="/boutique" element={<Boutique />} />
             <Route path="/profile" element={<Profile />} />
+            <Route 
+              path="/blockchain" 
+              element={
+                <ProtectedRoute>
+                  <Blockchain />
+                </ProtectedRoute>
+              } 
+            />
             <Route 
               path="/game" 
               element={
