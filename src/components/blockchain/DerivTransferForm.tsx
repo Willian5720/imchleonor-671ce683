@@ -14,22 +14,46 @@ import {
   RefreshCw,
   Shield,
   Zap,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { useDerivIntegration } from '@/hooks/useDerivIntegration';
 import { useUserProfile } from '@/hooks/useUserProfile';
+import { useUserWallets } from '@/hooks/useUserWallets';
+import { useExchangeRates } from '@/hooks/useExchangeRates';
+import { toast } from 'sonner';
 
 export const DerivTransferForm: React.FC = () => {
   const [depositAmount, setDepositAmount] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
-  const { loading, deposit, withdraw, exchangeRate, derivBalance } = useDerivIntegration();
+  const [copied, setCopied] = useState<string | null>(null);
+  const { loading, deposit, withdraw, derivBalance } = useDerivIntegration();
   const { profile, refetch } = useUserProfile();
+  const { getImchAddress, getEthAddress, generateAddress } = useUserWallets();
+  const { IMCH_TO_USD, IMCH_TO_ETH } = useExchangeRates();
+
+  const imchAddress = getImchAddress();
+  const ethAddress = getEthAddress();
+
+  const handleCopy = async (address: string) => {
+    await navigator.clipboard.writeText(address);
+    setCopied(address);
+    toast.success('Endereço copiado!');
+    setTimeout(() => setCopied(null), 2000);
+  };
 
   const handleDeposit = async () => {
     const amount = parseFloat(depositAmount);
     if (isNaN(amount) || amount <= 0) return;
     
     try {
-      await deposit(amount);
+      // Gerar endereço Ethereum se não existir para a transação
+      let toAddress = ethAddress;
+      if (!toAddress) {
+        toAddress = await generateAddress('ethereum', 'Deriv Deposit');
+      }
+      
+      await deposit(amount, toAddress || undefined);
       setDepositAmount('');
       refetch();
     } catch {
@@ -42,7 +66,13 @@ export const DerivTransferForm: React.FC = () => {
     if (isNaN(amount) || amount <= 0) return;
     
     try {
-      await withdraw(amount);
+      // Gerar endereço IMCH se não existir para receber
+      let toAddress = imchAddress;
+      if (!toAddress) {
+        toAddress = await generateAddress('imch', 'Withdrawal Address');
+      }
+      
+      await withdraw(amount, toAddress || undefined);
       setWithdrawAmount('');
       refetch();
     } catch {
@@ -51,6 +81,11 @@ export const DerivTransferForm: React.FC = () => {
   };
 
   const quickAmounts = [100, 500, 1000, 5000];
+
+  const formatAddress = (address: string) => {
+    if (address.length <= 16) return address;
+    return `${address.slice(0, 10)}...${address.slice(-8)}`;
+  };
 
   return (
     <Card className="bg-card/50 backdrop-blur border-primary/20">
@@ -62,7 +97,7 @@ export const DerivTransferForm: React.FC = () => {
               Transferência IMCH ↔ Deriv
             </CardTitle>
             <CardDescription>
-              Taxa de câmbio: 1 IMCH = ${exchangeRate.toFixed(4)} USD
+              Taxa: 1 IMCH = ${IMCH_TO_USD.toFixed(4)} USD | {IMCH_TO_ETH.toFixed(8)} ETH
             </CardDescription>
           </div>
           <div className="flex gap-4">
@@ -98,11 +133,29 @@ export const DerivTransferForm: React.FC = () => {
             <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
               <div className="flex items-center gap-2 mb-2">
                 <Shield className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium">Depositar IMCH → Deriv</span>
+                <span className="text-sm font-medium">Depositar IMCH → Deriv (via Ethereum)</span>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Converta suas IMCH Coins em saldo USD na sua conta Deriv para trading.
+              <p className="text-xs text-muted-foreground mb-3">
+                Converta suas IMCH Coins em saldo USD na sua conta Deriv usando Ethereum como intermediário.
               </p>
+              {ethAddress && (
+                <div className="flex items-center gap-2 p-2 bg-muted/30 rounded-md">
+                  <span className="text-xs text-muted-foreground">Endereço ETH:</span>
+                  <code className="text-xs font-mono">{formatAddress(ethAddress)}</code>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6"
+                    onClick={() => handleCopy(ethAddress)}
+                  >
+                    {copied === ethAddress ? (
+                      <Check className="h-3 w-3 text-green-500" />
+                    ) : (
+                      <Copy className="h-3 w-3" />
+                    )}
+                  </Button>
+                </div>
+              )}
             </div>
             
             <div className="space-y-2">
@@ -148,9 +201,15 @@ export const DerivTransferForm: React.FC = () => {
                   <span className="font-medium">{parseFloat(depositAmount).toLocaleString()} IMCH</span>
                 </div>
                 <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Via Ethereum:</span>
+                  <span className="font-medium text-blue-500">
+                    {(parseFloat(depositAmount) * IMCH_TO_ETH).toFixed(8)} ETH
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Você receberá:</span>
                   <span className="font-medium text-green-500">
-                    ${(parseFloat(depositAmount) * exchangeRate).toFixed(2)} USD
+                    ${(parseFloat(depositAmount) * IMCH_TO_USD).toFixed(2)} USD
                   </span>
                 </div>
               </div>
@@ -174,11 +233,29 @@ export const DerivTransferForm: React.FC = () => {
             <div className="p-4 rounded-lg bg-green-500/5 border border-green-500/20">
               <div className="flex items-center gap-2 mb-2">
                 <DollarSign className="h-4 w-4 text-green-500" />
-                <span className="text-sm font-medium">Retirar Deriv → IMCH</span>
+                <span className="text-sm font-medium">Retirar Deriv → IMCH (via Ethereum)</span>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Converta seu saldo USD da Deriv de volta para IMCH Coins.
+              <p className="text-xs text-muted-foreground mb-3">
+                Converta seu saldo USD da Deriv de volta para IMCH Coins via rede Ethereum.
               </p>
+              {imchAddress && (
+                <div className="flex items-center gap-2 p-2 bg-muted/30 rounded-md">
+                  <span className="text-xs text-muted-foreground">Endereço IMCH:</span>
+                  <code className="text-xs font-mono">{formatAddress(imchAddress)}</code>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6"
+                    onClick={() => handleCopy(imchAddress)}
+                  >
+                    {copied === imchAddress ? (
+                      <Check className="h-3 w-3 text-green-500" />
+                    ) : (
+                      <Copy className="h-3 w-3" />
+                    )}
+                  </Button>
+                </div>
+              )}
             </div>
             
             <div className="space-y-2">
@@ -214,7 +291,13 @@ export const DerivTransferForm: React.FC = () => {
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Você enviará:</span>
                   <span className="font-medium">
-                    ${(parseFloat(withdrawAmount) * exchangeRate).toFixed(2)} USD
+                    ${(parseFloat(withdrawAmount) * IMCH_TO_USD).toFixed(2)} USD
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Via Ethereum:</span>
+                  <span className="font-medium text-blue-500">
+                    {(parseFloat(withdrawAmount) * IMCH_TO_ETH).toFixed(8)} ETH
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
@@ -245,9 +328,9 @@ export const DerivTransferForm: React.FC = () => {
         <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
           <Badge variant="outline" className="gap-1">
             <Shield className="h-3 w-3" />
-            Blockchain
+            SHA-256
           </Badge>
-          <span>Todas as transações são registradas na blockchain IMCH</span>
+          <span>Transações criptografadas e registradas na blockchain IMCH via Ethereum</span>
         </div>
       </CardContent>
     </Card>

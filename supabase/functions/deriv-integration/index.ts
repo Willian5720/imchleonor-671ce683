@@ -7,7 +7,6 @@ const corsHeaders = {
 };
 
 const DERIV_API_URL = 'wss://ws.derivws.com/websockets/v3';
-const IMCH_TO_USD_RATE = 0.01; // 1 IMCH = 0.01 USD
 
 interface DerivMessage {
   authorize?: { loginid: string; email: string; balance: number; currency: string; is_virtual: number };
@@ -64,6 +63,19 @@ async function sendDerivCommand(ws: WebSocket, command: object): Promise<DerivMe
   });
 }
 
+// deno-lint-ignore no-explicit-any
+async function getExchangeRate(supabaseClient: any, from: string, to: string): Promise<number> {
+  const { data } = await supabaseClient
+    .from('exchange_rates')
+    .select('rate')
+    .eq('from_currency', from)
+    .eq('to_currency', to)
+    .single();
+  
+  // deno-lint-ignore no-explicit-any
+  return (data as any)?.rate || (from === 'IMCH' && to === 'USD' ? 0.01 : 100);
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -97,7 +109,12 @@ serve(async (req) => {
       });
     }
     
-    const { action, amount_imch, deriv_account_id } = await req.json();
+    const { action, amount_imch, amount_aoa, deriv_account_id, to_address } = await req.json();
+    
+    // Get exchange rates
+    const IMCH_TO_USD_RATE = await getExchangeRate(supabase, 'IMCH', 'USD');
+    const AOA_TO_IMCH_RATE = await getExchangeRate(supabase, 'AOA', 'IMCH');
+    const IMCH_TO_ETH_RATE = await getExchangeRate(supabase, 'IMCH', 'ETH');
     
     // Connect to Deriv WebSocket
     let ws: WebSocket | null = null;
@@ -114,6 +131,79 @@ serve(async (req) => {
             success: true,
             balance: balanceData.balance?.balance || 0,
             currency: balanceData.balance?.currency || 'USD',
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        
+        case 'get_exchange_rates': {
+          return new Response(JSON.stringify({
+            success: true,
+            rates: {
+              IMCH_TO_USD: IMCH_TO_USD_RATE,
+              AOA_TO_IMCH: AOA_TO_IMCH_RATE,
+              IMCH_TO_ETH: IMCH_TO_ETH_RATE,
+            }
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        
+        case 'add_balance_aoa': {
+          // Converter AOA para IMCH e adicionar ao saldo
+          if (!amount_aoa || amount_aoa <= 0) {
+            throw new Error('Invalid amount');
+          }
+          
+          const imchAmount = amount_aoa * AOA_TO_IMCH_RATE;
+          
+          // Atualizar saldo do usuário
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('coins')
+            .eq('id', user.id)
+            .single();
+          
+          await supabase
+            .from('profiles')
+            .update({ coins: (profile?.coins || 0) + Math.floor(imchAmount) })
+            .eq('id', user.id);
+          
+          // Gerar endereço de transação
+          const { data: txAddress } = await supabase.rpc('generate_transaction_address', {
+            p_user_id: user.id,
+            p_type: 'deposit'
+          });
+          
+          // Criar registro na blockchain
+          const { data: blockchainTx } = await supabase.rpc('create_blockchain_transaction', {
+            p_user_id: user.id,
+            p_transaction_type: 'aoa_deposit',
+            p_amount: imchAmount,
+            p_currency: 'IMCH',
+            p_to_address: txAddress || 'imch_wallet',
+            p_metadata: { 
+              amount_aoa,
+              exchange_rate: AOA_TO_IMCH_RATE,
+              source: 'kwanza_conversion'
+            }
+          });
+          
+          // Log audit
+          await supabase.rpc('log_user_action', {
+            p_user_id: user.id,
+            p_action: 'aoa_deposit',
+            p_entity_type: 'blockchain_transaction',
+            p_entity_id: blockchainTx,
+            p_details: { amount_aoa, amount_imch: imchAmount }
+          });
+          
+          return new Response(JSON.stringify({
+            success: true,
+            amount_aoa,
+            amount_imch: imchAmount,
+            blockchain_hash: blockchainTx,
+            tx_address: txAddress,
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
@@ -138,20 +228,29 @@ serve(async (req) => {
             throw new Error('Insufficient IMCH balance');
           }
           
+          // Generate unique addresses for the transaction
+          const { data: fromAddress } = await supabase.rpc('generate_wallet_address', { p_prefix: 'imch' });
+          const { data: toAddressGen } = await supabase.rpc('generate_wallet_address', { p_prefix: 'eth' });
+          
           // Deduct IMCH from user
           await supabase
             .from('profiles')
             .update({ coins: profile.coins - amount_imch })
             .eq('id', user.id);
           
-          // Create blockchain transaction
+          // Create blockchain transaction with addresses
           const { data: blockchainTx } = await supabase.rpc('create_blockchain_transaction', {
             p_user_id: user.id,
             p_transaction_type: 'deriv_deposit',
             p_amount: amount_imch,
             p_currency: 'IMCH',
-            p_to_address: deriv_account_id || 'deriv_main',
-            p_metadata: { amount_usd, exchange_rate: IMCH_TO_USD_RATE }
+            p_from_address: fromAddress,
+            p_to_address: to_address || toAddressGen || 'deriv_main',
+            p_metadata: { 
+              amount_usd, 
+              exchange_rate: IMCH_TO_USD_RATE,
+              eth_equivalent: amount_imch * IMCH_TO_ETH_RATE
+            }
           });
           
           // Record the transaction
@@ -177,7 +276,7 @@ serve(async (req) => {
             p_action: 'deriv_deposit',
             p_entity_type: 'deriv_transaction',
             p_entity_id: transaction?.id,
-            p_details: { amount_imch, amount_usd }
+            p_details: { amount_imch, amount_usd, from_address: fromAddress, to_address: to_address || toAddressGen }
           });
           
           return new Response(JSON.stringify({
@@ -186,6 +285,8 @@ serve(async (req) => {
             amount_imch,
             amount_usd,
             blockchain_hash: blockchainTx,
+            from_address: fromAddress,
+            to_address: to_address || toAddressGen,
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
@@ -199,14 +300,23 @@ serve(async (req) => {
           
           const amount_usd = amount_imch * IMCH_TO_USD_RATE;
           
-          // Create blockchain transaction
+          // Generate unique addresses for the transaction
+          const { data: fromAddress } = await supabase.rpc('generate_wallet_address', { p_prefix: 'eth' });
+          const { data: toAddressGen } = await supabase.rpc('generate_wallet_address', { p_prefix: 'imch' });
+          
+          // Create blockchain transaction with addresses
           const { data: blockchainTx } = await supabase.rpc('create_blockchain_transaction', {
             p_user_id: user.id,
             p_transaction_type: 'deriv_withdrawal',
             p_amount: amount_imch,
             p_currency: 'IMCH',
-            p_from_address: deriv_account_id || 'deriv_main',
-            p_metadata: { amount_usd, exchange_rate: IMCH_TO_USD_RATE }
+            p_from_address: fromAddress || 'deriv_main',
+            p_to_address: to_address || toAddressGen,
+            p_metadata: { 
+              amount_usd, 
+              exchange_rate: IMCH_TO_USD_RATE,
+              eth_equivalent: amount_imch * IMCH_TO_ETH_RATE
+            }
           });
           
           // Add IMCH to user
@@ -244,7 +354,7 @@ serve(async (req) => {
             p_action: 'deriv_withdrawal',
             p_entity_type: 'deriv_transaction',
             p_entity_id: transaction?.id,
-            p_details: { amount_imch, amount_usd }
+            p_details: { amount_imch, amount_usd, from_address: fromAddress, to_address: to_address || toAddressGen }
           });
           
           return new Response(JSON.stringify({
@@ -253,6 +363,8 @@ serve(async (req) => {
             amount_imch,
             amount_usd,
             blockchain_hash: blockchainTx,
+            from_address: fromAddress,
+            to_address: to_address || toAddressGen,
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
