@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
+import { useExchangeRates } from './useExchangeRates';
 
 export interface DerivTransaction {
   id: string;
@@ -37,10 +38,9 @@ export interface BlockchainBlock {
   confirmed_at: string | null;
 }
 
-const EXCHANGE_RATE = 0.01; // 1 IMCH = 0.01 USD
-
 export const useDerivIntegration = () => {
   const { user, session } = useAuth();
+  const { IMCH_TO_USD, AOA_TO_IMCH, IMCH_TO_ETH } = useExchangeRates();
   const [loading, setLoading] = useState(false);
   const [transactions, setTransactions] = useState<DerivTransaction[]>([]);
   const [blockchainBlocks, setBlockchainBlocks] = useState<BlockchainBlock[]>([]);
@@ -105,10 +105,13 @@ export const useDerivIntegration = () => {
     }
   }, [user, callDerivFunction]);
 
-  const deposit = useCallback(async (amountImch: number) => {
+  const deposit = useCallback(async (amountImch: number, toAddress?: string) => {
     setLoading(true);
     try {
-      const result = await callDerivFunction('deposit', { amount_imch: amountImch });
+      const result = await callDerivFunction('deposit', { 
+        amount_imch: amountImch,
+        to_address: toAddress 
+      });
       toast.success(`Depósito de ${amountImch} IMCH realizado com sucesso!`);
       await fetchTransactions();
       await fetchBlockchainHistory();
@@ -122,10 +125,13 @@ export const useDerivIntegration = () => {
     }
   }, [callDerivFunction, fetchTransactions, fetchBlockchainHistory]);
 
-  const withdraw = useCallback(async (amountImch: number) => {
+  const withdraw = useCallback(async (amountImch: number, toAddress?: string) => {
     setLoading(true);
     try {
-      const result = await callDerivFunction('withdraw', { amount_imch: amountImch });
+      const result = await callDerivFunction('withdraw', { 
+        amount_imch: amountImch,
+        to_address: toAddress 
+      });
       toast.success(`Retirada de ${amountImch} IMCH realizada com sucesso!`);
       await fetchTransactions();
       await fetchBlockchainHistory();
@@ -138,6 +144,22 @@ export const useDerivIntegration = () => {
       setLoading(false);
     }
   }, [callDerivFunction, fetchTransactions, fetchBlockchainHistory]);
+
+  const addBalanceFromAOA = useCallback(async (amountAOA: number) => {
+    setLoading(true);
+    try {
+      const result = await callDerivFunction('add_balance_aoa', { amount_aoa: amountAOA });
+      toast.success(`${result.amount_imch.toFixed(2)} IMCH adicionados!`);
+      await fetchBlockchainHistory();
+      return result;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Erro na conversão';
+      toast.error(message);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  }, [callDerivFunction, fetchBlockchainHistory]);
 
   // Subscribe to realtime updates
   useEffect(() => {
@@ -180,8 +202,10 @@ export const useDerivIntegration = () => {
     };
   }, [user, fetchTransactions, fetchBlockchainHistory, fetchDerivBalance]);
 
-  const convertImchToUsd = (imch: number) => imch * EXCHANGE_RATE;
-  const convertUsdToImch = (usd: number) => usd / EXCHANGE_RATE;
+  const convertImchToUsd = (imch: number) => imch * IMCH_TO_USD;
+  const convertUsdToImch = (usd: number) => usd / IMCH_TO_USD;
+  const convertAoaToImch = (aoa: number) => aoa * AOA_TO_IMCH;
+  const convertImchToEth = (imch: number) => imch * IMCH_TO_ETH;
 
   return {
     loading,
@@ -190,10 +214,13 @@ export const useDerivIntegration = () => {
     derivBalance,
     deposit,
     withdraw,
+    addBalanceFromAOA,
     fetchTransactions,
     fetchBlockchainHistory,
     convertImchToUsd,
     convertUsdToImch,
-    exchangeRate: EXCHANGE_RATE,
+    convertAoaToImch,
+    convertImchToEth,
+    exchangeRate: IMCH_TO_USD,
   };
 };

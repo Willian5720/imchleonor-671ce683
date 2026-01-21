@@ -1,4 +1,4 @@
-import { User, Send, Clock, Settings, LogOut, Moon, Sun, Bell, HelpCircle, Activity } from 'lucide-react';
+import { User, Send, Clock, Settings, LogOut, Moon, Sun, Bell, HelpCircle, Activity, Wallet } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,12 +10,16 @@ import { SendTransferForm } from '@/components/profile/SendTransferForm';
 import { TransferHistoryList } from '@/components/profile/TransferHistoryList';
 import { AuditLogList } from '@/components/profile/AuditLogList';
 import { TwoFactorAuth } from '@/components/profile/TwoFactorAuth';
+import { WalletAddresses } from '@/components/profile/WalletAddresses';
+import { BalanceCard } from '@/components/profile/BalanceCard';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuditLog } from '@/hooks/useAuditLog';
+import { useUserRole } from '@/hooks/useUserRole';
 
 export default function Profile() {
   const { signOut, user } = useAuth();
   const { logAction } = useAuditLog();
+  const { isAdmin } = useUserRole();
 
   const handleSignOut = async () => {
     await logAction('logout', 'auth');
@@ -34,16 +38,20 @@ export default function Profile() {
             <h1 className="text-3xl font-display font-bold text-primary neon-text-green">
               Meu Perfil
             </h1>
-            <p className="text-muted-foreground">Gerencie suas configurações e transferências</p>
+            <p className="text-muted-foreground">Gerencie suas configurações, saldos e transferências</p>
           </div>
         </div>
 
         {/* Main Tabs */}
         <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="grid w-full max-w-2xl grid-cols-5 mb-6">
+          <TabsList className="grid w-full max-w-3xl grid-cols-6 mb-6">
             <TabsTrigger value="profile" className="flex items-center gap-2">
               <User className="w-4 h-4" />
               <span className="hidden sm:inline">Perfil</span>
+            </TabsTrigger>
+            <TabsTrigger value="wallet" className="flex items-center gap-2">
+              <Wallet className="w-4 h-4" />
+              <span className="hidden sm:inline">Carteira</span>
             </TabsTrigger>
             <TabsTrigger value="transfer" className="flex items-center gap-2">
               <Send className="w-4 h-4" />
@@ -53,10 +61,12 @@ export default function Profile() {
               <Clock className="w-4 h-4" />
               <span className="hidden sm:inline">Histórico</span>
             </TabsTrigger>
-            <TabsTrigger value="audit" className="flex items-center gap-2">
-              <Activity className="w-4 h-4" />
-              <span className="hidden sm:inline">Atividade</span>
-            </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="audit" className="flex items-center gap-2">
+                <Activity className="w-4 h-4" />
+                <span className="hidden sm:inline">Auditoria</span>
+              </TabsTrigger>
+            )}
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <Settings className="w-4 h-4" />
               <span className="hidden sm:inline">Config</span>
@@ -102,6 +112,14 @@ export default function Profile() {
             </div>
           </TabsContent>
 
+          {/* Wallet Tab */}
+          <TabsContent value="wallet" className="mt-0">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <BalanceCard />
+              <WalletAddresses />
+            </div>
+          </TabsContent>
+
           {/* Transfer Tab */}
           <TabsContent value="transfer" className="mt-0">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -115,10 +133,12 @@ export default function Profile() {
             <TransferHistoryList />
           </TabsContent>
 
-          {/* Audit Log Tab */}
-          <TabsContent value="audit" className="mt-0">
-            <AuditLogList />
-          </TabsContent>
+          {/* Audit Log Tab - Admin Only */}
+          {isAdmin && (
+            <TabsContent value="audit" className="mt-0">
+              <AuditLogList />
+            </TabsContent>
+          )}
 
           {/* Settings Tab */}
           <TabsContent value="settings" className="mt-0">
