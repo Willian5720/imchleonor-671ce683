@@ -205,6 +205,30 @@ export type Database = {
           },
         ]
       }
+      exchange_rates: {
+        Row: {
+          from_currency: string
+          id: string
+          rate: number
+          to_currency: string
+          updated_at: string
+        }
+        Insert: {
+          from_currency: string
+          id?: string
+          rate: number
+          to_currency: string
+          updated_at?: string
+        }
+        Update: {
+          from_currency?: string
+          id?: string
+          rate?: number
+          to_currency?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       imch_balances: {
         Row: {
           admin_email: string
@@ -292,6 +316,7 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          balance_aoa: number
           bio: string | null
           coins: number
           created_at: string
@@ -303,6 +328,7 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          balance_aoa?: number
           bio?: string | null
           coins?: number
           created_at?: string
@@ -314,6 +340,7 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          balance_aoa?: number
           bio?: string | null
           coins?: number
           created_at?: string
@@ -379,11 +406,50 @@ export type Database = {
         }
         Relationships: []
       }
+      user_wallets: {
+        Row: {
+          address: string
+          created_at: string
+          id: string
+          is_primary: boolean
+          label: string | null
+          user_id: string
+          wallet_type: string
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          label?: string | null
+          user_id: string
+          wallet_type?: string
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          label?: string | null
+          user_id?: string
+          wallet_type?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      add_balance_with_conversion: {
+        Args: {
+          p_amount: number
+          p_from_currency: string
+          p_to_currency: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       create_blockchain_transaction: {
         Args: {
           p_amount: number
@@ -405,6 +471,11 @@ export type Database = {
         }
         Returns: string
       }
+      generate_transaction_address: {
+        Args: { p_type?: string; p_user_id: string }
+        Returns: string
+      }
+      generate_wallet_address: { Args: { p_prefix?: string }; Returns: string }
       get_user_balance: { Args: { user_id: string }; Returns: number }
       has_role: {
         Args: {
