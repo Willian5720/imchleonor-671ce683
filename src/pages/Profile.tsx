@@ -12,6 +12,7 @@ import { AuditLogList } from '@/components/profile/AuditLogList';
 import { TwoFactorAuth } from '@/components/profile/TwoFactorAuth';
 import { WalletAddresses } from '@/components/profile/WalletAddresses';
 import { BalanceCard } from '@/components/profile/BalanceCard';
+import { WalletCard } from '@/components/profile/WalletCard';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuditLog } from '@/hooks/useAuditLog';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -115,7 +116,7 @@ export default function Profile() {
           {/* Wallet Tab */}
           <TabsContent value="wallet" className="mt-0">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <BalanceCard />
+              <WalletCard />
               <WalletAddresses />
             </div>
           </TabsContent>
