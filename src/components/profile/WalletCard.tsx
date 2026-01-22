@@ -57,7 +57,8 @@ const paymentMethods: PaymentMethod[] = [
   },
 ];
 
-const TRANSACTION_FEE = 0.90; // 90 cêntimos por IMCH
+// Taxa de transação de 30%
+const TRANSACTION_FEE_PERCENT = 30;
 
 export const WalletCard: React.FC = () => {
   const { profile, loading: profileLoading, refetch } = useUserProfile();
@@ -67,7 +68,7 @@ export const WalletCard: React.FC = () => {
   const [step, setStep] = useState<Step>('card');
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState<'add' | 'withdraw'>('add');
-  const [aoaAmount, setAoaAmount] = useState('');
+  const [inputAmount, setInputAmount] = useState('');
   const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
 
@@ -78,7 +79,7 @@ export const WalletCard: React.FC = () => {
   const openAddModal = () => {
     setModalType('add');
     setStep('amount');
-    setAoaAmount('');
+    setInputAmount('');
     setSelectedPayment(null);
     setModalOpen(true);
   };
@@ -86,7 +87,7 @@ export const WalletCard: React.FC = () => {
   const openWithdrawModal = () => {
     setModalType('withdraw');
     setStep('amount');
-    setAoaAmount('');
+    setInputAmount('');
     setSelectedPayment(null);
     setModalOpen(true);
   };
@@ -94,7 +95,7 @@ export const WalletCard: React.FC = () => {
   const closeModal = () => {
     setModalOpen(false);
     setStep('card');
-    setAoaAmount('');
+    setInputAmount('');
     setSelectedPayment(null);
   };
 
@@ -103,22 +104,41 @@ export const WalletCard: React.FC = () => {
     else if (step === 'amount') closeModal();
   };
 
-  const aoaValue = parseFloat(aoaAmount) || 0;
+  // Cálculos para depósito (AOA -> IMCH)
+  const aoaValue = modalType === 'add' ? (parseFloat(inputAmount) || 0) : 0;
   const imchBeforeFee = aoaValue * AOA_TO_IMCH;
-  const transactionFee = imchBeforeFee * (TRANSACTION_FEE / 100);
-  const imchAfterFee = imchBeforeFee - transactionFee;
+  const depositFee = imchBeforeFee * (TRANSACTION_FEE_PERCENT / 100);
+  const imchAfterFee = imchBeforeFee - depositFee;
+
+  // Cálculos para retirada (IMCH -> AOA)
+  const imchToWithdraw = modalType === 'withdraw' ? (parseFloat(inputAmount) || 0) : 0;
+  const withdrawFee = imchToWithdraw * (TRANSACTION_FEE_PERCENT / 100);
+  const imchAfterWithdrawFee = imchToWithdraw - withdrawFee;
+  const aoaToReceive = imchAfterWithdrawFee * IMCH_TO_AOA;
 
   const minAOA = 1000;
   const maxAOA = 500000;
+  const minIMCH = 1;
 
   const handleProceed = () => {
-    if (aoaValue < minAOA) {
-      toast.error(`Valor mínimo: ${minAOA.toLocaleString()} AOA`);
-      return;
-    }
-    if (aoaValue > maxAOA) {
-      toast.error(`Valor máximo: ${maxAOA.toLocaleString()} AOA`);
-      return;
+    if (modalType === 'add') {
+      if (aoaValue < minAOA) {
+        toast.error(`Valor mínimo: ${minAOA.toLocaleString()} AOA`);
+        return;
+      }
+      if (aoaValue > maxAOA) {
+        toast.error(`Valor máximo: ${maxAOA.toLocaleString()} AOA`);
+        return;
+      }
+    } else {
+      if (imchToWithdraw < minIMCH) {
+        toast.error(`Valor mínimo: ${minIMCH} IMCH`);
+        return;
+      }
+      if (imchToWithdraw > imchBalance) {
+        toast.error('Saldo insuficiente');
+        return;
+      }
     }
     setStep('payment');
   };
@@ -134,26 +154,68 @@ export const WalletCard: React.FC = () => {
       // Simular processamento do pagamento
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      const { data, error } = await supabase.rpc('add_balance_with_conversion', {
-        p_user_id: user.id,
-        p_amount: aoaValue,
-        p_from_currency: 'AOA',
-        p_to_currency: 'IMCH',
-      });
+      if (modalType === 'add') {
+        // Depósito: converter AOA para IMCH com taxa de 30%
+        const amountAfterFee = aoaValue * (1 - TRANSACTION_FEE_PERCENT / 100);
+        
+        const { data, error } = await supabase.rpc('add_balance_with_conversion', {
+          p_user_id: user.id,
+          p_amount: amountAfterFee,
+          p_from_currency: 'AOA',
+          p_to_currency: 'IMCH',
+        });
 
-      if (error) throw error;
+        if (error) throw error;
 
-      const result = data as { success: boolean; error?: string; converted_amount?: number };
-      
-      if (result.success) {
+        const result = data as { success: boolean; error?: string; converted_amount?: number };
+        
+        if (result.success) {
+          setStep('success');
+          refetch();
+        } else {
+          throw new Error(result.error || 'Erro na conversão');
+        }
+      } else {
+        // Retirada: converter IMCH para AOA com taxa de 30%
+        // Primeiro, verificar saldo suficiente
+        if (imchToWithdraw > imchBalance) {
+          throw new Error('Saldo insuficiente');
+        }
+
+        // Deduzir do saldo de IMCH do usuário
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ 
+            coins: imchBalance - imchToWithdraw,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', user.id);
+
+        if (updateError) throw updateError;
+
+        // Registrar a transação de retirada
+        const { error: transferError } = await supabase
+          .from('user_transfers')
+          .insert({
+            from_user_id: user.id,
+            to_user_id: user.id, // Para si mesmo (retirada)
+            amount: imchToWithdraw,
+            currency: 'IMCH_WITHDRAW',
+            note: `Retirada de ${imchToWithdraw} IMCH para ${aoaToReceive.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA via ${methodId}`,
+            status: 'completed'
+          });
+
+        if (transferError) {
+          console.error('Transfer record error:', transferError);
+          // Continuar mesmo se falhar o registro
+        }
+
         setStep('success');
         refetch();
-      } else {
-        throw new Error(result.error || 'Erro na conversão');
       }
     } catch (error) {
       console.error('Payment error:', error);
-      toast.error('Erro ao processar pagamento');
+      toast.error(modalType === 'add' ? 'Erro ao processar pagamento' : 'Erro ao processar retirada');
       setStep('payment');
     } finally {
       setProcessing(false);
@@ -253,66 +315,157 @@ export const WalletCard: React.FC = () => {
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <DialogTitle className="text-xl">
-                  {modalType === 'add' ? 'Adicionar' : 'Retirar'}
+                  {modalType === 'add' ? 'Adicionar Saldo' : 'Retirar Saldo'}
                 </DialogTitle>
               </DialogHeader>
 
               <div className="space-y-6 py-4">
                 <div>
                   <p className="text-lg font-medium mb-4">
-                    Quanto você quer {modalType === 'add' ? 'adicionar' : 'retirar'}?
+                    {modalType === 'add' 
+                      ? 'Quanto você quer depositar?' 
+                      : 'Quantos IMCH você quer retirar?'}
                   </p>
                   
-                  <div className="flex items-baseline gap-2 mb-2">
-                    <span className="text-4xl font-bold">Kz</span>
-                    <Input
-                      type="number"
-                      value={aoaAmount}
-                      onChange={(e) => setAoaAmount(e.target.value)}
-                      placeholder="0"
-                      className="text-4xl font-bold border-none bg-transparent p-0 h-auto focus-visible:ring-0 w-full"
-                      style={{ fontSize: '2.5rem' }}
-                    />
-                    <span className="text-xl text-muted-foreground">AOA</span>
-                  </div>
+                  {modalType === 'add' ? (
+                    <div className="flex items-baseline gap-2 mb-2">
+                      <span className="text-4xl font-bold">Kz</span>
+                      <Input
+                        type="number"
+                        value={inputAmount}
+                        onChange={(e) => setInputAmount(e.target.value)}
+                        placeholder="0"
+                        className="text-4xl font-bold border-none bg-transparent p-0 h-auto focus-visible:ring-0 w-full"
+                        style={{ fontSize: '2.5rem' }}
+                      />
+                      <span className="text-xl text-muted-foreground">AOA</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-baseline gap-2 mb-2">
+                      <Input
+                        type="number"
+                        value={inputAmount}
+                        onChange={(e) => setInputAmount(e.target.value)}
+                        placeholder="0"
+                        className="text-4xl font-bold border-none bg-transparent p-0 h-auto focus-visible:ring-0 w-full"
+                        style={{ fontSize: '2.5rem' }}
+                      />
+                      <span className="text-xl text-muted-foreground">IMCH</span>
+                    </div>
+                  )}
 
                   <div className="text-sm text-muted-foreground space-y-1">
-                    <p>Saldo: {imchBalance.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} IMCH</p>
-                    <p>Min. {minAOA.toLocaleString('pt-AO')} AOA / Max. {maxAOA.toLocaleString('pt-AO')} AOA</p>
+                    <p>Saldo disponível: {imchBalance.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} IMCH</p>
+                    {modalType === 'add' ? (
+                      <p>Min. {minAOA.toLocaleString('pt-AO')} AOA / Max. {maxAOA.toLocaleString('pt-AO')} AOA</p>
+                    ) : (
+                      <p>Min. {minIMCH} IMCH</p>
+                    )}
                   </div>
                 </div>
 
-                {aoaValue > 0 && (
+                {/* Depósito: mostrar conversão AOA -> IMCH */}
+                {modalType === 'add' && aoaValue > 0 && (
                   <div className="p-4 rounded-xl border border-primary/30 bg-primary/5 space-y-3">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
                         💱
                       </div>
-                      <span>P2P</span>
+                      <span>Conversão AOA → IMCH</span>
                     </div>
-                    <p className="text-sm text-muted-foreground">Você receberá</p>
-                    <div className="flex items-center gap-2">
-                      <span className="text-3xl font-bold">
-                        {imchAfterFee.toLocaleString('pt-AO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                      <span className="text-lg text-muted-foreground">IMCH</span>
+                    
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Valor depositado:</span>
+                        <span className="font-medium">Kz {aoaValue.toLocaleString('pt-AO')} AOA</span>
+                      </div>
+                      <div className="flex justify-between text-destructive">
+                        <span>Taxa de transação ({TRANSACTION_FEE_PERCENT}%):</span>
+                        <span>-Kz {(aoaValue * TRANSACTION_FEE_PERCENT / 100).toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</span>
+                      </div>
+                      <div className="flex justify-between border-t border-border pt-2">
+                        <span className="text-muted-foreground">Valor líquido:</span>
+                        <span className="font-medium">Kz {(aoaValue * (1 - TRANSACTION_FEE_PERCENT / 100)).toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA</span>
+                      </div>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      1 IMCH = {IMCH_TO_AOA.toLocaleString('pt-AO')} AOA
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Taxa de transação: {TRANSACTION_FEE}% ({transactionFee.toFixed(4)} IMCH)
-                    </p>
+
+                    <div className="border-t border-border pt-3">
+                      <p className="text-sm text-muted-foreground mb-1">Você receberá</p>
+                      <div className="flex items-center gap-2">
+                        <span className="text-3xl font-bold text-primary">
+                          {imchAfterFee.toLocaleString('pt-AO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                        <span className="text-lg text-muted-foreground">IMCH</span>
+                      </div>
+                    </div>
+
                     <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2 border-t border-border">
                       <Clock className="h-3 w-3" />
-                      <span>1 minuto</span>
+                      <span>Processamento em 1-5 minutos</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Retirada: mostrar conversão IMCH -> AOA */}
+                {modalType === 'withdraw' && imchToWithdraw > 0 && (
+                  <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 space-y-3">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                        💸
+                      </div>
+                      <span>Conversão IMCH → AOA</span>
+                    </div>
+                    
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">IMCH a retirar:</span>
+                        <span className="font-medium">{imchToWithdraw.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} IMCH</span>
+                      </div>
+                      <div className="flex justify-between text-destructive">
+                        <span>Taxa de transação ({TRANSACTION_FEE_PERCENT}%):</span>
+                        <span>-{withdrawFee.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} IMCH</span>
+                      </div>
+                      <div className="flex justify-between border-t border-border pt-2">
+                        <span className="text-muted-foreground">IMCH líquido:</span>
+                        <span className="font-medium">{imchAfterWithdrawFee.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} IMCH</span>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-border pt-3">
+                      <p className="text-sm text-muted-foreground mb-1">Você receberá na sua conta bancária</p>
+                      <div className="flex items-center gap-2">
+                        <span className="text-3xl font-bold text-amber-500">
+                          Kz {aoaToReceive.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}
+                        </span>
+                        <span className="text-lg text-muted-foreground">AOA</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Taxa: 1 IMCH = {IMCH_TO_AOA.toLocaleString('pt-AO')} AOA
+                      </p>
+                    </div>
+
+                    {imchToWithdraw > imchBalance && (
+                      <div className="p-2 rounded-lg bg-destructive/10 border border-destructive/30">
+                        <p className="text-xs text-destructive font-medium">
+                          ⚠️ Saldo insuficiente. Você tem apenas {imchBalance.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} IMCH
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2 border-t border-border">
+                      <Clock className="h-3 w-3" />
+                      <span>Transferência em 1-3 dias úteis</span>
                     </div>
                   </div>
                 )}
 
                 <Button
                   onClick={handleProceed}
-                  disabled={aoaValue < minAOA}
+                  disabled={
+                    modalType === 'add' 
+                      ? aoaValue < minAOA 
+                      : imchToWithdraw < minIMCH || imchToWithdraw > imchBalance
+                  }
                   className="w-full h-12 text-lg font-medium rounded-xl"
                 >
                   Prosseguir
@@ -328,16 +481,32 @@ export const WalletCard: React.FC = () => {
                 <Button variant="ghost" size="icon" onClick={goBack} className="h-8 w-8">
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
-                <DialogTitle className="text-xl">Escolha o método de pagamento</DialogTitle>
+                <DialogTitle className="text-xl">
+                  {modalType === 'add' 
+                    ? 'Escolha o método de pagamento' 
+                    : 'Escolha onde receber'}
+                </DialogTitle>
               </DialogHeader>
 
               <div className="space-y-3 py-4">
                 <div className="p-3 rounded-lg bg-muted/30 mb-4">
-                  <p className="text-sm text-muted-foreground">Valor a pagar</p>
-                  <p className="text-2xl font-bold">Kz {aoaValue.toLocaleString('pt-AO')} AOA</p>
-                  <p className="text-sm text-primary">
-                    → {imchAfterFee.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} IMCH
-                  </p>
+                  {modalType === 'add' ? (
+                    <>
+                      <p className="text-sm text-muted-foreground">Valor a pagar</p>
+                      <p className="text-2xl font-bold">Kz {aoaValue.toLocaleString('pt-AO')} AOA</p>
+                      <p className="text-sm text-primary">
+                        → {imchAfterFee.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} IMCH
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm text-muted-foreground">Valor a retirar</p>
+                      <p className="text-2xl font-bold">{imchToWithdraw.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} IMCH</p>
+                      <p className="text-sm text-amber-500">
+                        → Kz {aoaToReceive.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA
+                      </p>
+                    </>
+                  )}
                 </div>
 
                 {paymentMethods.map((method) => (
@@ -361,7 +530,9 @@ export const WalletCard: React.FC = () => {
           {step === 'processing' && (
             <div className="py-12 text-center space-y-4">
               <Loader2 className="h-16 w-16 animate-spin mx-auto text-primary" />
-              <p className="text-lg font-medium">Processando pagamento...</p>
+              <p className="text-lg font-medium">
+                {modalType === 'add' ? 'Processando pagamento...' : 'Processando retirada...'}
+              </p>
               <p className="text-sm text-muted-foreground">
                 Aguarde enquanto confirmamos sua transação
               </p>
@@ -374,9 +545,14 @@ export const WalletCard: React.FC = () => {
               <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center mx-auto">
                 <CheckCircle2 className="h-12 w-12 text-primary" />
               </div>
-              <p className="text-xl font-bold">Pagamento Confirmado!</p>
+              <p className="text-xl font-bold">
+                {modalType === 'add' ? 'Pagamento Confirmado!' : 'Retirada Confirmada!'}
+              </p>
               <p className="text-muted-foreground">
-                {imchAfterFee.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} IMCH foram adicionados à sua carteira
+                {modalType === 'add' 
+                  ? `${imchAfterFee.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} IMCH foram adicionados à sua carteira`
+                  : `Kz ${aoaToReceive.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA serão transferidos para sua conta bancária em até 3 dias úteis`
+                }
               </p>
               <Button onClick={closeModal} className="w-full h-12 rounded-xl">
                 Concluir
