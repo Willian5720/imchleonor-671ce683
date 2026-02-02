@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { User, Mail, Phone, FileText, Camera, Save, Loader2 } from 'lucide-react';
+import { User, Mail, Phone, FileText, Save, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,8 +9,11 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useUserProfile } from '@/hooks/useUserProfile';
+import { AvatarUpload } from './AvatarUpload';
+import { useAuth } from '@/hooks/useAuth';
 
 export function UserProfileCard() {
+  const { user } = useAuth();
   const { toast } = useToast();
   const { profile, loading, updateProfile } = useUserProfile();
   const [isEditing, setIsEditing] = useState(false);
@@ -90,27 +93,22 @@ export function UserProfileCard() {
       <CardHeader>
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-4">
-            <div className="relative">
+            {isEditing && user ? (
+              <AvatarUpload
+                currentAvatarUrl={formData.avatar_url || profile?.avatar_url}
+                userId={user.id}
+                initials={getInitials()}
+                onUploadComplete={(url) => setFormData(prev => ({ ...prev, avatar_url: url }))}
+                disabled={saving}
+              />
+            ) : (
               <Avatar className="w-20 h-20 border-2 border-primary/30">
                 <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.display_name || 'User'} />
                 <AvatarFallback className="bg-primary/10 text-primary text-xl font-bold">
                   {getInitials()}
                 </AvatarFallback>
               </Avatar>
-              {isEditing && (
-                <Button
-                  size="icon"
-                  variant="secondary"
-                  className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full"
-                  onClick={() => {
-                    const url = prompt('Cole a URL da sua foto de perfil:');
-                    if (url) setFormData(prev => ({ ...prev, avatar_url: url }));
-                  }}
-                >
-                  <Camera className="w-3 h-3" />
-                </Button>
-              )}
-            </div>
+            )}
             <div>
               <CardTitle className="text-xl flex items-center gap-2">
                 <User className="w-5 h-5 text-primary" />
