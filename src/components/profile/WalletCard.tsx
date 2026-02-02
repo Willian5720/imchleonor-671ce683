@@ -14,12 +14,15 @@ import {
   Wallet,
   Clock,
   CheckCircle2,
+  Users,
 } from 'lucide-react';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useExchangeRates } from '@/hooks/useExchangeRates';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
+import { BrokerButtons, BrokerTransferDialog } from './BrokerTransferDialog';
+import { UserTransferDialog } from './UserTransferDialog';
 
 type Step = 'card' | 'amount' | 'payment' | 'processing' | 'success';
 
@@ -57,7 +60,6 @@ const paymentMethods: PaymentMethod[] = [
   },
 ];
 
-// Taxa de transação de 30%
 const TRANSACTION_FEE_PERCENT = 30;
 
 export const WalletCard: React.FC = () => {
@@ -71,6 +73,13 @@ export const WalletCard: React.FC = () => {
   const [inputAmount, setInputAmount] = useState('');
   const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
+  
+  // Broker transfer states
+  const [brokerModalOpen, setBrokerModalOpen] = useState(false);
+  const [selectedBroker, setSelectedBroker] = useState<string | null>(null);
+  
+  // User transfer state
+  const [userTransferOpen, setUserTransferOpen] = useState(false);
 
   const loading = profileLoading || ratesLoading;
   const imchBalance = profile?.coins || 0;
@@ -102,6 +111,11 @@ export const WalletCard: React.FC = () => {
   const goBack = () => {
     if (step === 'payment') setStep('amount');
     else if (step === 'amount') closeModal();
+  };
+
+  const handleBrokerSelect = (brokerId: string) => {
+    setSelectedBroker(brokerId);
+    setBrokerModalOpen(true);
   };
 
   // Cálculos para depósito (AOA -> IMCH)
@@ -151,11 +165,9 @@ export const WalletCard: React.FC = () => {
     setProcessing(true);
 
     try {
-      // Simular processamento do pagamento
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       if (modalType === 'add') {
-        // Depósito: converter AOA para IMCH com taxa de 30%
         const amountAfterFee = aoaValue * (1 - TRANSACTION_FEE_PERCENT / 100);
         
         const { data, error } = await supabase.rpc('add_balance_with_conversion', {
@@ -176,13 +188,10 @@ export const WalletCard: React.FC = () => {
           throw new Error(result.error || 'Erro na conversão');
         }
       } else {
-        // Retirada: converter IMCH para AOA com taxa de 30%
-        // Primeiro, verificar saldo suficiente
         if (imchToWithdraw > imchBalance) {
           throw new Error('Saldo insuficiente');
         }
 
-        // Deduzir do saldo de IMCH do usuário
         const { error: updateError } = await supabase
           .from('profiles')
           .update({ 
@@ -193,22 +202,16 @@ export const WalletCard: React.FC = () => {
 
         if (updateError) throw updateError;
 
-        // Registrar a transação de retirada
-        const { error: transferError } = await supabase
+        await supabase
           .from('user_transfers')
           .insert({
             from_user_id: user.id,
-            to_user_id: user.id, // Para si mesmo (retirada)
+            to_user_id: user.id,
             amount: imchToWithdraw,
             currency: 'IMCH_WITHDRAW',
             note: `Retirada de ${imchToWithdraw} IMCH para ${aoaToReceive.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA via ${methodId}`,
             status: 'completed'
           });
-
-        if (transferError) {
-          console.error('Transfer record error:', transferError);
-          // Continuar mesmo se falhar o registro
-        }
 
         setStep('success');
         refetch();
@@ -236,15 +239,14 @@ export const WalletCard: React.FC = () => {
 
   return (
     <>
-      {/* Credit Card Style Wallet */}
-      <div className="space-y-4">
+      <div className="space-y-6">
+        {/* Credit Card Style Wallet */}
         <div 
           className="relative w-full h-48 rounded-2xl overflow-hidden"
           style={{
             background: 'linear-gradient(135deg, hsl(270 70% 40%) 0%, hsl(200 100% 40%) 50%, hsl(150 100% 40%) 100%)',
           }}
         >
-          {/* Holographic overlay */}
           <div 
             className="absolute inset-0 opacity-30"
             style={{
@@ -252,9 +254,7 @@ export const WalletCard: React.FC = () => {
             }}
           />
           
-          {/* Card content */}
           <div className="relative z-10 h-full p-5 flex flex-col justify-between text-white">
-            {/* Header */}
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-xs opacity-80 mb-1">Saldo IMCH Coin</p>
@@ -267,7 +267,6 @@ export const WalletCard: React.FC = () => {
               </div>
             </div>
 
-            {/* Balance */}
             <div>
               <p className="text-4xl font-bold tracking-tight mb-1">
                 {imchBalance.toLocaleString('pt-AO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -279,7 +278,6 @@ export const WalletCard: React.FC = () => {
             </div>
           </div>
 
-          {/* Decorative circles */}
           <div className="absolute -right-8 -bottom-8 w-32 h-32 rounded-full bg-white/10" />
           <div className="absolute -right-4 -bottom-4 w-24 h-24 rounded-full bg-white/10" />
         </div>
@@ -302,12 +300,47 @@ export const WalletCard: React.FC = () => {
             Retirar
           </Button>
         </div>
+
+        {/* Broker Transfer Buttons */}
+        <BrokerButtons onSelect={handleBrokerSelect} />
+
+        {/* User Transfer Button */}
+        <div className="space-y-3">
+          <h3 className="text-sm font-medium text-muted-foreground">Transferências</h3>
+          <Button
+            onClick={() => setUserTransferOpen(true)}
+            variant="outline"
+            className="w-full h-14 justify-start gap-4 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border-primary/30 hover:border-primary/50"
+          >
+            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+              <Users className="h-5 w-5 text-primary" />
+            </div>
+            <div className="text-left">
+              <p className="font-medium">Transferir para Usuário</p>
+              <p className="text-xs text-muted-foreground">Envie IMCH para outros usuários da plataforma</p>
+            </div>
+          </Button>
+        </div>
       </div>
 
-      {/* Modal */}
+      {/* Broker Transfer Dialog */}
+      <BrokerTransferDialog
+        open={brokerModalOpen}
+        onOpenChange={setBrokerModalOpen}
+        brokerId={selectedBroker}
+        onSuccess={refetch}
+      />
+
+      {/* User Transfer Dialog */}
+      <UserTransferDialog
+        open={userTransferOpen}
+        onOpenChange={setUserTransferOpen}
+        onSuccess={refetch}
+      />
+
+      {/* Add/Withdraw Modal */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="sm:max-w-md bg-background border-border">
-          {/* Amount Step */}
           {step === 'amount' && (
             <>
               <DialogHeader className="flex-row items-center gap-3">
@@ -364,7 +397,6 @@ export const WalletCard: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Depósito: mostrar conversão AOA -> IMCH */}
                 {modalType === 'add' && aoaValue > 0 && (
                   <div className="p-4 rounded-xl border border-primary/30 bg-primary/5 space-y-3">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -406,7 +438,6 @@ export const WalletCard: React.FC = () => {
                   </div>
                 )}
 
-                {/* Retirada: mostrar conversão IMCH -> AOA */}
                 {modalType === 'withdraw' && imchToWithdraw > 0 && (
                   <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 space-y-3">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -474,7 +505,6 @@ export const WalletCard: React.FC = () => {
             </>
           )}
 
-          {/* Payment Methods Step */}
           {step === 'payment' && (
             <>
               <DialogHeader className="flex-row items-center gap-3">
@@ -526,7 +556,6 @@ export const WalletCard: React.FC = () => {
             </>
           )}
 
-          {/* Processing Step */}
           {step === 'processing' && (
             <div className="py-12 text-center space-y-4">
               <Loader2 className="h-16 w-16 animate-spin mx-auto text-primary" />
@@ -539,7 +568,6 @@ export const WalletCard: React.FC = () => {
             </div>
           )}
 
-          {/* Success Step */}
           {step === 'success' && (
             <div className="py-12 text-center space-y-4">
               <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center mx-auto">
