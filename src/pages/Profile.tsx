@@ -1,4 +1,4 @@
-import { User, Send, Clock, Settings, LogOut, Moon, Sun, Bell, HelpCircle, Activity, Wallet } from 'lucide-react';
+import { User, Send, Clock, Settings, LogOut, Moon, Sun, Bell, HelpCircle, Activity, Wallet, Coins } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -33,13 +33,16 @@ export default function Profile() {
           <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 border border-primary/30">
             <User className="w-8 h-8 text-primary" />
           </div>
-          <div>
+          <div className="flex items-center gap-3">
             <h1 className="text-3xl font-display font-bold text-primary neon-text-green">
               Meu Perfil
             </h1>
-            <p className="text-muted-foreground">Gerencie suas configurações, saldos e transferências</p>
+            <div className="p-2 rounded-full bg-gradient-to-br from-yellow-400/20 to-amber-500/20 border border-yellow-500/30">
+              <Coins className="w-6 h-6 text-yellow-500" />
+            </div>
           </div>
         </div>
+        <p className="text-muted-foreground mb-6">Gerencie suas configurações, saldos e transferências</p>
 
         {/* Main Tabs */}
         <Tabs defaultValue="profile" className="w-full">
