@@ -305,7 +305,7 @@ const Auth = () => {
         {/* Logo/Title */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold font-display neon-text-green">
-            LEONOR
+            IMCHLEONOR
           </h1>
           {!is2FAVerify && !is2FASetup && (
             <p className="text-muted-foreground mt-2">
