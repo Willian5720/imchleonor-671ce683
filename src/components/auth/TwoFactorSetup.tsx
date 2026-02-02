@@ -30,35 +30,79 @@ export const TwoFactorSetup = ({ onSuccess, onCancel }: TwoFactorSetupProps) => 
   const startEnrollment = async () => {
     setEnrolling(true);
     try {
-      // First, clean up any existing unverified factors
-      const { data: factorsData } = await supabase.auth.mfa.listFactors();
-      if (factorsData?.totp) {
+      // List all existing factors
+      const { data: factorsData, error: listError } = await supabase.auth.mfa.listFactors();
+      
+      if (listError) {
+        console.error('Error listing factors:', listError);
+      }
+      
+      if (factorsData?.totp && factorsData.totp.length > 0) {
+        // Check if user already has a verified factor
+        const verifiedFactor = factorsData.totp.find(f => f.status === 'verified');
+        
+        if (verifiedFactor) {
+          // User already has 2FA set up, they should verify not setup
+          toast({
+            title: '2FA já configurado',
+            description: 'Você já tem 2FA ativo. Faça login novamente para verificar.',
+          });
+          await supabase.auth.signOut();
+          onCancel();
+          return;
+        }
+        
+        // Clean up ALL unverified factors (regardless of name)
         for (const factor of factorsData.totp) {
           if (factor.status !== 'verified') {
             try {
+              console.log('Cleaning up unverified factor:', factor.id);
               await supabase.auth.mfa.unenroll({ factorId: factor.id });
             } catch (e) {
-              console.log('Could not clean up factor:', e);
+              console.log('Could not clean up factor:', factor.id, e);
             }
           }
         }
+        
+        // Small delay to ensure cleanup is complete
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
 
-      // Now enroll a new factor
+      // Generate a unique friendly name to avoid conflicts
+      const timestamp = Date.now();
+      const friendlyName = `LEONOR-${timestamp}`;
+
+      // Now enroll a new factor with unique name
       const { data, error } = await supabase.auth.mfa.enroll({
         factorType: 'totp',
-        friendlyName: 'LEONOR App',
+        friendlyName,
       });
 
-      if (error) throw error;
+      if (error) {
+        // If still getting name conflict, try without friendly name
+        if (error.message?.includes('already exists')) {
+          const { data: retryData, error: retryError } = await supabase.auth.mfa.enroll({
+            factorType: 'totp',
+          });
+          
+          if (retryError) throw retryError;
+          
+          setQrCode(retryData.totp.qr_code);
+          setSecret(retryData.totp.secret);
+          setFactorId(retryData.id);
+          return;
+        }
+        throw error;
+      }
 
       setQrCode(data.totp.qr_code);
       setSecret(data.totp.secret);
       setFactorId(data.id);
     } catch (error) {
+      console.error('2FA enrollment error:', error);
       toast({
         title: 'Erro ao configurar 2FA',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
+        description: error instanceof Error ? error.message : 'Erro desconhecido. Tente fazer login novamente.',
         variant: 'destructive',
       });
       // If enrollment fails, sign out and return to login
