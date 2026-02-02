@@ -10,8 +10,6 @@ import { SendTransferForm } from '@/components/profile/SendTransferForm';
 import { TransferHistoryList } from '@/components/profile/TransferHistoryList';
 import { AuditLogList } from '@/components/profile/AuditLogList';
 import { TwoFactorAuth } from '@/components/profile/TwoFactorAuth';
-import { WalletAddresses } from '@/components/profile/WalletAddresses';
-import { BalanceCard } from '@/components/profile/BalanceCard';
 import { WalletCard } from '@/components/profile/WalletCard';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuditLog } from '@/hooks/useAuditLog';
@@ -115,9 +113,8 @@ export default function Profile() {
 
           {/* Wallet Tab */}
           <TabsContent value="wallet" className="mt-0">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="max-w-lg mx-auto">
               <WalletCard />
-              <WalletAddresses />
             </div>
           </TabsContent>
 
