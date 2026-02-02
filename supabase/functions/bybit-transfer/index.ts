@@ -38,7 +38,7 @@ const UpdateSettingsSchema = BaseRequestSchema.extend({
 
 const ManualTransferSchema = BaseRequestSchema.extend({
   action: z.literal('manual_transfer'),
-  coins: z.number().int().min(1).max(1000000).optional(),
+  coins: z.number().positive().max(1000000).optional(),
   userEmail: EmailSchema,
 });
 
@@ -424,7 +424,7 @@ serve(async (req) => {
         if (!validation.success) {
           return new Response(JSON.stringify({
             success: false,
-            error: "Invalid coins value for manual transfer. Must be an integer between 1 and 1,000,000.",
+            error: "Valor inválido para transferência. Deve ser um número positivo até 1.000.000.",
           }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         customCoins = validation.data.coins ?? null;
