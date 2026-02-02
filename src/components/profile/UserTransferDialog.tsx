@@ -60,7 +60,7 @@ export const UserTransferDialog: React.FC<Props> = ({
     setSearching(true);
     try {
       const { data, error } = await supabase.functions.invoke('search-users', {
-        body: { query: searchEmail }
+        body: { email: searchEmail }
       });
 
       if (error) throw error;
