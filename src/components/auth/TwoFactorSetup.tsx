@@ -30,6 +30,21 @@ export const TwoFactorSetup = ({ onSuccess, onCancel }: TwoFactorSetupProps) => 
   const startEnrollment = async () => {
     setEnrolling(true);
     try {
+      // First, clean up any existing unverified factors
+      const { data: factorsData } = await supabase.auth.mfa.listFactors();
+      if (factorsData?.totp) {
+        for (const factor of factorsData.totp) {
+          if (factor.status !== 'verified') {
+            try {
+              await supabase.auth.mfa.unenroll({ factorId: factor.id });
+            } catch (e) {
+              console.log('Could not clean up factor:', e);
+            }
+          }
+        }
+      }
+
+      // Now enroll a new factor
       const { data, error } = await supabase.auth.mfa.enroll({
         factorType: 'totp',
         friendlyName: 'LEONOR App',
@@ -46,6 +61,9 @@ export const TwoFactorSetup = ({ onSuccess, onCancel }: TwoFactorSetupProps) => 
         description: error instanceof Error ? error.message : 'Erro desconhecido',
         variant: 'destructive',
       });
+      // If enrollment fails, sign out and return to login
+      await supabase.auth.signOut();
+      onCancel();
     } finally {
       setEnrolling(false);
       setLoading(false);

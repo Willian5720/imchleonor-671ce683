@@ -27,6 +27,15 @@ export const TwoFactorVerification = ({ onSuccess, onCancel }: TwoFactorVerifica
         const totpFactor = data.totp.find(f => f.status === 'verified');
         if (totpFactor) {
           setFactorId(totpFactor.id);
+        } else {
+          // No verified factor found - user needs to set up 2FA first
+          toast({
+            title: 'Configuração necessária',
+            description: 'Você precisa configurar o 2FA primeiro.',
+            variant: 'destructive',
+          });
+          onCancel();
+          return;
         }
       } catch (error) {
         console.error('Error getting factors:', error);
@@ -35,13 +44,15 @@ export const TwoFactorVerification = ({ onSuccess, onCancel }: TwoFactorVerifica
           description: 'Erro ao carregar configurações de 2FA.',
           variant: 'destructive',
         });
+        onCancel();
+        return;
       } finally {
         setLoading(false);
       }
     };
 
     getFactors();
-  }, [toast]);
+  }, [toast, onCancel]);
 
   const handleVerify = async () => {
     if (!factorId || verificationCode.length !== 6) return;
