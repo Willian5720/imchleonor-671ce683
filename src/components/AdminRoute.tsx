@@ -1,7 +1,8 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, ShieldX } from 'lucide-react';
+import { Loader2, ShieldX, Home } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface AdminRouteProps {
   children: React.ReactNode;
@@ -10,6 +11,7 @@ interface AdminRouteProps {
 export const AdminRoute = ({ children }: AdminRouteProps) => {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const { isAdmin, loading: roleLoading } = useUserRole();
+  const navigate = useNavigate();
 
   if (authLoading || roleLoading) {
     return (
@@ -31,9 +33,17 @@ export const AdminRoute = ({ children }: AdminRouteProps) => {
             <ShieldX className="w-8 h-8 text-destructive" />
           </div>
           <h2 className="text-2xl font-bold text-foreground mb-2">Acesso Restrito</h2>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground mb-6">
             Esta área é exclusiva para administradores.
           </p>
+          <Button 
+            onClick={() => navigate('/')} 
+            variant="outline"
+            className="gap-2"
+          >
+            <Home className="w-4 h-4" />
+            Voltar ao Início
+          </Button>
         </div>
       </div>
     );
