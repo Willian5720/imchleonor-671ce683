@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Settings, History, RefreshCw, Send, RotateCcw, DollarSign } from 'lucide-react';
+import { Settings, History, RefreshCw, Send, RotateCcw, DollarSign, ShieldX, Home } from 'lucide-react';
 import { useImchGame } from '@/hooks/useImchGame';
 import { useSound } from '@/hooks/useSound';
 import { MinerButton } from '@/components/MinerButton';
@@ -11,6 +11,7 @@ import { FloatingCoin } from '@/components/FloatingCoin';
 import { ManualTransfer } from '@/components/ManualTransfer';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { Link } from 'react-router-dom';
 
 interface FloatingCoinData {
   id: number;
@@ -24,6 +25,7 @@ const Game = () => {
     threshold,
     transfers,
     isLoading,
+    isAuthorized,
     transferStatus,
     statusMessage,
     addCoin,
@@ -89,6 +91,32 @@ const Game = () => {
             IMCHLEONOR
           </div>
           <p className="text-muted-foreground text-sm">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show access denied screen for non-admin users
+  if (!isAuthorized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <div className="text-center max-w-md">
+          <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-destructive/20 flex items-center justify-center">
+            <ShieldX className="w-10 h-10 text-destructive" />
+          </div>
+          <h1 className="font-display font-bold text-2xl text-foreground mb-3">
+            Acesso Negado
+          </h1>
+          <p className="text-muted-foreground mb-6">
+            Este sistema é exclusivo para administradores. 
+            Você não tem permissão para acessar o IMCHLEONOR.
+          </p>
+          <Link to="/">
+            <Button className="gap-2">
+              <Home className="w-4 h-4" />
+              Voltar ao Início
+            </Button>
+          </Link>
         </div>
       </div>
     );
