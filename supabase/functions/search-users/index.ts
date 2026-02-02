@@ -94,14 +94,13 @@ serve(async (req) => {
       );
     }
 
-    // Mask emails for privacy - only show first 3 chars and domain
+    // Mask emails for privacy - NEVER return full emails to prevent enumeration attacks
     const maskedResults = (profiles || []).map((profile) => ({
       id: profile.id,
       display_name: profile.display_name,
       avatar_url: profile.avatar_url,
       email_hint: profile.email ? maskEmail(profile.email) : null,
-      // Include full email only if it exactly matches the search query
-      email: profile.email?.toLowerCase() === email.toLowerCase() ? profile.email : null,
+      // Security: Never return full email to prevent enumeration
     }));
 
     return new Response(

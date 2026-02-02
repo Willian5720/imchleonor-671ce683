@@ -28,6 +28,8 @@ export const useAuth = () => {
   }, []);
 
   const signOut = async () => {
+    // Security: Clear sensitive data from localStorage on logout
+    localStorage.removeItem('crypto_trading_history');
     await supabase.auth.signOut();
   };
 
