@@ -34,33 +34,39 @@ export const useImchGame = () => {
     try {
       setIsLoading(true);
       
-      // Get balance
+      // Get balance first - this checks authorization
       const balanceRes = await supabase.functions.invoke('bybit-transfer', {
         body: { action: 'get_balance', userEmail },
       });
       
-      if (balanceRes.data?.unauthorized) {
+      // Check for unauthorized response (403 or unauthorized flag)
+      if (balanceRes.error || balanceRes.data?.unauthorized) {
         setIsAuthorized(false);
         setIsLoading(false);
         return;
       }
       
+      // User is authorized, proceed with other requests
+      setIsAuthorized(true);
+      
       if (balanceRes.data?.success) {
         setCoins(Number(balanceRes.data.coins) || 0);
       }
       
-      // Get settings
-      const settingsRes = await supabase.functions.invoke('bybit-transfer', {
-        body: { action: 'get_settings', userEmail },
-      });
+      // Get settings and transfers in parallel (only if authorized)
+      const [settingsRes, transfersRes] = await Promise.all([
+        supabase.functions.invoke('bybit-transfer', {
+          body: { action: 'get_settings', userEmail },
+        }),
+        supabase.functions.invoke('bybit-transfer', {
+          body: { action: 'get_transfers', userEmail },
+        }),
+      ]);
+      
       if (settingsRes.data?.success) {
         setThreshold(Number(settingsRes.data.threshold) || 500);
       }
       
-      // Get transfers
-      const transfersRes = await supabase.functions.invoke('bybit-transfer', {
-        body: { action: 'get_transfers', userEmail },
-      });
       if (transfersRes.data?.success) {
         setTransfers(transfersRes.data.transfers || []);
       }
@@ -81,7 +87,8 @@ export const useImchGame = () => {
       }
       
     } catch {
-      // Error handled silently - user sees loading state
+      // If any error occurs, assume unauthorized for safety
+      setIsAuthorized(false);
     } finally {
       setIsLoading(false);
     }
