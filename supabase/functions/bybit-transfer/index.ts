@@ -132,9 +132,16 @@ async function getWalletBalances(): Promise<{ unified: number; funding: number }
     console.log("Unified account response:", JSON.stringify(unifiedData));
     
     let unifiedBalance = 0;
-    if (unifiedData.retCode === 0 && unifiedData.result?.balance?.coin) {
-      const usdtCoin = unifiedData.result.balance.coin.find((c: { coin: string }) => c.coin === "USDT");
-      unifiedBalance = parseFloat(usdtCoin?.walletBalance || "0");
+    if (unifiedData.retCode === 0 && unifiedData.result?.balance) {
+      const balanceData = unifiedData.result.balance;
+      console.log("Unified balance data type:", typeof balanceData, "isArray:", Array.isArray(balanceData));
+      
+      // The API returns result.balance as an array directly: [{"coin":"USDT","transferBalance":"2",...}]
+      if (Array.isArray(balanceData)) {
+        const usdtCoin = balanceData.find((c: { coin: string }) => c.coin === "USDT");
+        console.log("Found USDT coin in unified:", JSON.stringify(usdtCoin));
+        unifiedBalance = parseFloat(usdtCoin?.transferBalance || usdtCoin?.walletBalance || "0");
+      }
     }
     
     // Check FUND account
@@ -156,9 +163,16 @@ async function getWalletBalances(): Promise<{ unified: number; funding: number }
     console.log("Fund account response:", JSON.stringify(fundData));
     
     let fundBalance = 0;
-    if (fundData.retCode === 0 && fundData.result?.balance?.coin) {
-      const usdtCoin = fundData.result.balance.coin.find((c: { coin: string }) => c.coin === "USDT");
-      fundBalance = parseFloat(usdtCoin?.walletBalance || "0");
+    if (fundData.retCode === 0 && fundData.result?.balance) {
+      const balanceData = fundData.result.balance;
+      console.log("Fund balance data type:", typeof balanceData, "isArray:", Array.isArray(balanceData));
+      
+      // The API returns result.balance as an array directly: [{"coin":"USDT","transferBalance":"5.55",...}]
+      if (Array.isArray(balanceData)) {
+        const usdtCoin = balanceData.find((c: { coin: string }) => c.coin === "USDT");
+        console.log("Found USDT coin in fund:", JSON.stringify(usdtCoin));
+        fundBalance = parseFloat(usdtCoin?.transferBalance || usdtCoin?.walletBalance || "0");
+      }
     }
     
     console.log(`Bybit balances - Unified: ${unifiedBalance} USDT, Funding: ${fundBalance} USDT`);
