@@ -108,8 +108,107 @@ async function generateSignature(payload: string, timestamp: string, recvWindow:
   return new TextDecoder().decode(hexBytes);
 }
 
+// Get wallet balance to check which account has funds
+async function getWalletBalances(): Promise<{ unified: number; funding: number } | null> {
+  try {
+    const timestamp = Date.now().toString();
+    const recvWindow = "20000";
+    
+    // Check UNIFIED account
+    const unifiedParams = "accountType=UNIFIED&coin=USDT";
+    const unifiedSignature = await generateSignature(unifiedParams, timestamp, recvWindow);
+    
+    const unifiedResponse = await fetch(`https://api.bybit.com/v5/asset/transfer/query-account-coins-balance?${unifiedParams}`, {
+      method: "GET",
+      headers: {
+        "X-BAPI-API-KEY": BYBIT_API_KEY!,
+        "X-BAPI-TIMESTAMP": timestamp,
+        "X-BAPI-RECV-WINDOW": recvWindow,
+        "X-BAPI-SIGN": unifiedSignature,
+      },
+    });
+    
+    const unifiedData = await unifiedResponse.json();
+    console.log("Unified account response:", JSON.stringify(unifiedData));
+    
+    let unifiedBalance = 0;
+    if (unifiedData.retCode === 0 && unifiedData.result?.balance?.coin) {
+      const usdtCoin = unifiedData.result.balance.coin.find((c: { coin: string }) => c.coin === "USDT");
+      unifiedBalance = parseFloat(usdtCoin?.walletBalance || "0");
+    }
+    
+    // Check FUND account
+    const timestamp2 = Date.now().toString();
+    const fundParams = "accountType=FUND&coin=USDT";
+    const fundSignature = await generateSignature(fundParams, timestamp2, recvWindow);
+    
+    const fundResponse = await fetch(`https://api.bybit.com/v5/asset/transfer/query-account-coins-balance?${fundParams}`, {
+      method: "GET",
+      headers: {
+        "X-BAPI-API-KEY": BYBIT_API_KEY!,
+        "X-BAPI-TIMESTAMP": timestamp2,
+        "X-BAPI-RECV-WINDOW": recvWindow,
+        "X-BAPI-SIGN": fundSignature,
+      },
+    });
+    
+    const fundData = await fundResponse.json();
+    console.log("Fund account response:", JSON.stringify(fundData));
+    
+    let fundBalance = 0;
+    if (fundData.retCode === 0 && fundData.result?.balance?.coin) {
+      const usdtCoin = fundData.result.balance.coin.find((c: { coin: string }) => c.coin === "USDT");
+      fundBalance = parseFloat(usdtCoin?.walletBalance || "0");
+    }
+    
+    console.log(`Bybit balances - Unified: ${unifiedBalance} USDT, Funding: ${fundBalance} USDT`);
+    return { unified: unifiedBalance, funding: fundBalance };
+  } catch (error) {
+    console.error("Error checking Bybit balances:", error);
+    return null;
+  }
+}
+
 async function transferToFunding(amount: string): Promise<{ success: boolean; transferId?: string; error?: string }> {
   try {
+    const amountNum = parseFloat(amount);
+    
+    // Check available balances first
+    const balances = await getWalletBalances();
+    
+    if (!balances) {
+      return { success: false, error: "Não foi possível verificar saldo na Bybit. Verifique suas credenciais de API." };
+    }
+    
+    // Determine transfer direction based on where the funds are
+    let fromAccount: string;
+    let toAccount: string;
+    let availableBalance: number;
+    
+    if (balances.unified >= amountNum) {
+      // Transfer from UNIFIED to FUND
+      fromAccount = "UNIFIED";
+      toAccount = "FUND";
+      availableBalance = balances.unified;
+      console.log(`Transferring from UNIFIED (${balances.unified} USDT) to FUND`);
+    } else if (balances.funding >= amountNum) {
+      // Funds are already in FUND - this is actually a success scenario
+      // The user just needs to withdraw from there
+      console.log(`Funds already in FUND account (${balances.funding} USDT)`);
+      return { 
+        success: true, 
+        transferId: `already-in-fund-${Date.now()}`,
+        error: undefined 
+      };
+    } else {
+      // Neither account has enough balance
+      const totalAvailable = balances.unified + balances.funding;
+      return { 
+        success: false, 
+        error: `Saldo insuficiente na Bybit. Disponível: ${totalAvailable.toFixed(2)} USDT (Unified: ${balances.unified.toFixed(2)}, Funding: ${balances.funding.toFixed(2)}). Necessário: ${amountNum.toFixed(2)} USDT` 
+      };
+    }
+    
     const timestamp = Date.now().toString();
     const recvWindow = "20000";
     
@@ -117,14 +216,14 @@ async function transferToFunding(amount: string): Promise<{ success: boolean; tr
       transferId: crypto.randomUUID(),
       coin: "USDT",
       amount: amount,
-      fromAccountType: "UNIFIED",
-      toAccountType: "FUND",
+      fromAccountType: fromAccount,
+      toAccountType: toAccount,
     };
     
     const bodyString = JSON.stringify(params);
     const signature = await generateSignature(bodyString, timestamp, recvWindow);
     
-    console.log("Making Bybit transfer request");
+    console.log("Making Bybit transfer request:", { from: fromAccount, to: toAccount, amount });
     
     const response = await fetch("https://api.bybit.com/v5/asset/transfer/inter-transfer", {
       method: "POST",
@@ -144,11 +243,11 @@ async function transferToFunding(amount: string): Promise<{ success: boolean; tr
       console.log("Bybit transfer successful");
       return { success: true, transferId: data.result?.transferId || params.transferId };
     } else {
-      console.error("Bybit transfer failed with code:", data.retCode);
+      console.error("Bybit transfer failed with code:", data.retCode, data.retMsg);
       return { success: false, error: data.retMsg || "Transfer failed" };
     }
   } catch (error) {
-    console.error("Bybit transfer error occurred");
+    console.error("Bybit transfer error occurred:", error);
     return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
   }
 }
