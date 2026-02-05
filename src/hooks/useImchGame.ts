@@ -264,6 +264,77 @@ export const useImchGame = () => {
     }
   }, [userEmail]);
 
+  // Withdraw to external wallet
+  const withdrawToWallet = useCallback(async (coinsToWithdraw: number, walletAddress: string) => {
+    if (coinsToWithdraw <= 0 || coinsToWithdraw > coins) {
+      setStatusMessage('Saldo insuficiente para saque');
+      return false;
+    }
+    
+    try {
+      setTransferStatus('processing');
+      setStatusMessage('Processando saque para carteira externa...');
+      
+      const result = await supabase.functions.invoke('bybit-transfer', {
+        body: { 
+          action: 'withdraw_to_wallet', 
+          userEmail, 
+          coins: coinsToWithdraw,
+          walletAddress 
+        },
+      });
+      
+      if (result.data?.success && result.data.status === 'completed') {
+        setCoins(Number(result.data.coins) || 0);
+        setTransferStatus('completed');
+        setStatusMessage('Saque iniciado! Aguarde confirmação na blockchain.');
+        
+        // Refresh transfers list
+        const transfersRes = await supabase.functions.invoke('bybit-transfer', {
+          body: { action: 'get_transfers', userEmail },
+        });
+        if (transfersRes.data?.success) {
+          setTransfers(transfersRes.data.transfers || []);
+        }
+        
+        setTimeout(() => {
+          setTransferStatus('idle');
+          setStatusMessage('Comece a minerar IMCH Coins!');
+        }, 10000);
+        
+        return true;
+      } else {
+        setTransferStatus('failed');
+        setStatusMessage(result.data?.message || result.data?.error || 'Falha no saque');
+        return false;
+      }
+    } catch {
+      setTransferStatus('failed');
+      setStatusMessage('Erro de conexão');
+      return false;
+    }
+  }, [coins, userEmail]);
+
+  // Get Bybit balance
+  const getBybitBalance = useCallback(async () => {
+    try {
+      const result = await supabase.functions.invoke('bybit-transfer', {
+        body: { action: 'get_bybit_balance', userEmail },
+      });
+      
+      if (result.data?.success) {
+        return {
+          unified: result.data.unified || 0,
+          funding: result.data.funding || 0,
+          total: result.data.total || 0,
+        };
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }, [userEmail]);
+
   return {
     coins,
     threshold,
@@ -279,5 +350,7 @@ export const useImchGame = () => {
     manualTransfer,
     resetCoins,
     refreshData: fetchData,
+    withdrawToWallet,
+    getBybitBalance,
   };
 };

@@ -14,7 +14,9 @@ const ActionSchema = z.enum([
   'get_transfers',
   'check_and_transfer',
   'manual_transfer',
-  'reset_coins'
+  'reset_coins',
+  'withdraw_to_wallet',
+  'get_bybit_balance'
 ]);
 
 const EmailSchema = z.string().email().max(255);
@@ -39,6 +41,13 @@ const UpdateSettingsSchema = BaseRequestSchema.extend({
 const ManualTransferSchema = BaseRequestSchema.extend({
   action: z.literal('manual_transfer'),
   coins: z.number().positive().max(1000000).optional(),
+  userEmail: EmailSchema,
+});
+
+const WithdrawSchema = BaseRequestSchema.extend({
+  action: z.literal('withdraw_to_wallet'),
+  coins: z.number().positive().max(1000000),
+  walletAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid ERC20 address'),
   userEmail: EmailSchema,
 });
 
@@ -263,6 +272,102 @@ async function transferToFunding(amount: string): Promise<{ success: boolean; tr
   } catch (error) {
     console.error("Bybit transfer error occurred:", error);
     return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+  }
+}
+
+// Withdraw USDT to external wallet (ERC20)
+async function withdrawToExternalWallet(
+  amount: string, 
+  walletAddress: string, 
+  chain: string = "ETH"
+): Promise<{ success: boolean; withdrawId?: string; error?: string }> {
+  try {
+    const amountNum = parseFloat(amount);
+    
+    // Check available balances first
+    const balances = await getWalletBalances();
+    
+    if (!balances) {
+      return { success: false, error: "Não foi possível verificar saldo na Bybit. Verifique suas credenciais de API." };
+    }
+    
+    const totalAvailable = balances.unified + balances.funding;
+    
+    // Check if we need to move funds to FUND account first (withdrawals usually come from FUND)
+    if (totalAvailable < amountNum) {
+      return { 
+        success: false, 
+        error: `Saldo insuficiente na Bybit. Disponível: ${totalAvailable.toFixed(2)} USDT. Necessário: ${amountNum.toFixed(2)} USDT` 
+      };
+    }
+    
+    // If funds are in UNIFIED, transfer to FUND first
+    if (balances.funding < amountNum && balances.unified >= amountNum) {
+      const transferToFund = await transferToFunding(amount);
+      if (!transferToFund.success) {
+        return { success: false, error: `Erro ao mover fundos para conta de saque: ${transferToFund.error}` };
+      }
+      console.log("Moved funds from UNIFIED to FUND for withdrawal");
+    }
+    
+    // Now perform the actual withdrawal
+    const timestamp = Date.now().toString();
+    const recvWindow = "20000";
+    
+    const params = {
+      coin: "USDT",
+      chain: chain,
+      address: walletAddress,
+      amount: amount,
+      timestamp: timestamp,
+      accountType: "FUND",
+    };
+    
+    const bodyString = JSON.stringify(params);
+    const signature = await generateSignature(bodyString, timestamp, recvWindow);
+    
+    console.log("Making Bybit withdrawal request:", { 
+      chain, 
+      address: walletAddress.substring(0, 10) + "...", 
+      amount 
+    });
+    
+    const response = await fetch("https://api.bybit.com/v5/asset/withdraw/create", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-BAPI-API-KEY": BYBIT_API_KEY!,
+        "X-BAPI-TIMESTAMP": timestamp,
+        "X-BAPI-RECV-WINDOW": recvWindow,
+        "X-BAPI-SIGN": signature,
+      },
+      body: bodyString,
+    });
+    
+    const data = await response.json();
+    console.log("Bybit withdrawal response:", JSON.stringify(data));
+    
+    if (data.retCode === 0) {
+      console.log("Bybit withdrawal initiated successfully");
+      return { success: true, withdrawId: data.result?.id || `withdraw-${Date.now()}` };
+    } else {
+      console.error("Bybit withdrawal failed with code:", data.retCode, data.retMsg);
+      
+      // Common error messages translation
+      let errorMessage = data.retMsg || "Falha no saque";
+      if (data.retCode === 10004) {
+        errorMessage = "Saque não autorizado. Verifique se a API Key tem permissão de saque.";
+      } else if (data.retCode === 131004) {
+        errorMessage = "Endereço de carteira não está na whitelist. Adicione o endereço na Bybit primeiro.";
+      } else if (data.retCode === 131001) {
+        errorMessage = "Valor abaixo do mínimo permitido para saque.";
+      }
+      
+      return { success: false, error: errorMessage };
+    }
+  } catch (error) {
+    console.error("Bybit withdrawal error occurred:", error);
+    return { success: false, error: error instanceof Error ? error.message : "Erro desconhecido" };
   }
 }
 
@@ -526,6 +631,136 @@ serve(async (req) => {
         coins: 0,
         message: "Saldo resetado com sucesso",
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // Get Bybit account balance
+    if (action === "get_bybit_balance") {
+      const balances = await getWalletBalances();
+      
+      if (!balances) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: "Não foi possível obter saldo da Bybit",
+        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      
+      return new Response(JSON.stringify({
+        success: true,
+        unified: balances.unified,
+        funding: balances.funding,
+        total: balances.unified + balances.funding,
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // Withdraw to external wallet (ERC20)
+    if (action === "withdraw_to_wallet") {
+      const validation = WithdrawSchema.safeParse(body);
+      if (!validation.success) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: "Parâmetros inválidos. Verifique o valor e o endereço da carteira.",
+          details: validation.error.issues.map(i => i.message),
+        }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      
+      const { coins: coinsToWithdraw, walletAddress } = validation.data;
+      
+      // Check IMCH balance in platform
+      const { data: balanceData } = await supabase
+        .from('imch_balances')
+        .select('coins')
+        .eq('admin_email', ADMIN_EMAIL)
+        .single();
+      
+      const currentCoins = Number(balanceData?.coins) || 0;
+      
+      if (coinsToWithdraw > currentCoins) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: `Saldo IMCH insuficiente. Disponível: ${currentCoins.toFixed(4)} IMCH`,
+          coins: currentCoins,
+        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      
+      // Convert IMCH to USDT (1 IMCH = 100 USDT)
+      const usdtValue = coinsToWithdraw * 100;
+      
+      // Apply 30% service fee
+      const serviceFee = usdtValue * 0.30;
+      const netUsdtValue = usdtValue - serviceFee;
+      
+      // Minimum withdrawal (Bybit usually requires at least 10 USDT for ERC20)
+      if (netUsdtValue < 10) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: `Valor líquido (${netUsdtValue.toFixed(2)} USDT) abaixo do mínimo de 10 USDT. Aumente o valor.`,
+          coins: currentCoins,
+        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      
+      // Create pending transfer record
+      const { data: transferRecord, error: insertError } = await supabase
+        .from('imch_transfers')
+        .insert({
+          admin_email: ADMIN_EMAIL,
+          amount_usdt: netUsdtValue,
+          coins_transferred: coinsToWithdraw,
+          status: 'processing',
+        })
+        .select()
+        .single();
+      
+      if (insertError) throw insertError;
+      
+      // Execute Bybit withdrawal to external wallet
+      const withdrawResult = await withdrawToExternalWallet(netUsdtValue.toFixed(2), walletAddress, "ETH");
+      
+      if (withdrawResult.success) {
+        await supabase
+          .from('imch_transfers')
+          .update({
+            status: 'success',
+            bybit_transfer_id: withdrawResult.withdrawId,
+          })
+          .eq('id', transferRecord.id);
+        
+        // Deduct coins from platform balance
+        const remainingCoins = currentCoins - coinsToWithdraw;
+        await supabase
+          .from('imch_balances')
+          .update({ coins: remainingCoins })
+          .eq('admin_email', ADMIN_EMAIL);
+        
+        return new Response(JSON.stringify({
+          success: true,
+          status: "completed",
+          message: `Saque de ${netUsdtValue.toFixed(2)} USDT iniciado para ${walletAddress.substring(0, 10)}...`,
+          withdrawId: withdrawResult.withdrawId,
+          coins: remainingCoins,
+          details: {
+            grossAmount: usdtValue,
+            serviceFee: serviceFee,
+            netAmount: netUsdtValue,
+            walletAddress: walletAddress,
+            network: "ERC20 (Ethereum)",
+          }
+        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      } else {
+        await supabase
+          .from('imch_transfers')
+          .update({
+            status: 'failed',
+            error_message: withdrawResult.error,
+          })
+          .eq('id', transferRecord.id);
+        
+        return new Response(JSON.stringify({
+          success: false,
+          status: "failed",
+          message: withdrawResult.error,
+          coins: currentCoins,
+        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
     }
 
     if (action === "check_and_transfer" || action === "manual_transfer") {
