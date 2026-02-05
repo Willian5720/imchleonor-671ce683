@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Settings, History, RefreshCw, Send, RotateCcw, DollarSign, ShieldX, Home } from 'lucide-react';
+import { Settings, History, RefreshCw, Send, RotateCcw, DollarSign, ShieldX, Home, ArrowUpRight } from 'lucide-react';
 import { useImchGame } from '@/hooks/useImchGame';
 import { useSound } from '@/hooks/useSound';
 import { MinerButton } from '@/components/MinerButton';
@@ -9,6 +9,7 @@ import { TransferHistory } from '@/components/TransferHistory';
 import { ImchSettings } from '@/components/ImchSettings';
 import { FloatingCoin } from '@/components/FloatingCoin';
 import { ManualTransfer } from '@/components/ManualTransfer';
+import { WithdrawToWallet } from '@/components/WithdrawToWallet';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Link } from 'react-router-dom';
@@ -34,6 +35,7 @@ const Game = () => {
     manualTransfer,
     resetCoins,
     refreshData,
+    withdrawToWallet,
   } = useImchGame();
   
   const { playCoinSound, playSuccessSound } = useSound();
@@ -44,6 +46,7 @@ const Game = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showManualTransfer, setShowManualTransfer] = useState(false);
+  const [showWithdrawToWallet, setShowWithdrawToWallet] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleMine = useCallback(async (e: React.MouseEvent) => {
@@ -191,6 +194,14 @@ const Game = () => {
         {/* Action buttons */}
         <div className="flex flex-wrap justify-center gap-3 mt-2">
           <Button
+            onClick={() => setShowWithdrawToWallet(true)}
+            disabled={coins <= 0 || transferStatus === 'processing'}
+            className="bg-gradient-to-r from-green-500 to-emerald-600 hover:opacity-90 font-display text-white"
+          >
+            <ArrowUpRight className="w-4 h-4 mr-2" />
+            Sacar para Bybit
+          </Button>
+          <Button
             onClick={() => setShowManualTransfer(true)}
             disabled={coins <= 0 || transferStatus === 'processing'}
             className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 font-display"
@@ -245,8 +256,8 @@ const Game = () => {
 
         {/* Footer */}
         <p className="text-muted-foreground/50 text-xs mt-6 text-center">
-          🔒 Transferências automáticas via Bybit API<br />
-          <span className="text-primary/50">Sistema 100% automático</span>
+          🔒 Saques via blockchain ERC20 (Ethereum)<br />
+          <span className="text-primary/50">Taxa de serviço: 30%</span>
         </p>
       </div>
 
@@ -261,6 +272,25 @@ const Game = () => {
             toast({
               title: "🎉 Transferência Manual!",
               description: `${(coinsAmount * 100).toFixed(2)} USDT transferidos para a Bybit!`,
+            });
+          }
+          return success;
+        }}
+        currentCoins={coins}
+        isProcessing={transferStatus === 'processing'}
+      />
+
+      {/* Withdraw to Wallet Modal */}
+      <WithdrawToWallet
+        isOpen={showWithdrawToWallet}
+        onClose={() => setShowWithdrawToWallet(false)}
+        onWithdraw={async (coinsAmount, walletAddress) => {
+          const success = await withdrawToWallet(coinsAmount, walletAddress);
+          if (success) {
+            playSuccessSound();
+            toast({
+              title: "🎉 Saque Iniciado!",
+              description: `USDT sendo enviado para sua carteira Bybit via ERC20!`,
             });
           }
           return success;
