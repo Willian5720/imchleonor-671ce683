@@ -25,7 +25,7 @@
    const [walletAddress, setWalletAddress] = useState('');
    const [inputMode, setInputMode] = useState<'coins' | 'usdt'>('usdt');
  
-  const MIN_WITHDRAWAL_USDT = 10;
+  const MIN_WITHDRAWAL_USDT = 1;
 
   const coinsValue = parseFloat(inputCoins) || 0;
   const usdtValue = coinsValue * 100;
