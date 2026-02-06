@@ -685,15 +685,11 @@ serve(async (req) => {
       // Convert IMCH to USDT (1 IMCH = 100 USDT)
       const usdtValue = coinsToWithdraw * 100;
       
-      // Apply 30% service fee
-      const serviceFee = usdtValue * 0.30;
-      const netUsdtValue = usdtValue - serviceFee;
-      
       // Minimum withdrawal (Bybit usually requires at least 10 USDT for ERC20)
-      if (netUsdtValue < 10) {
+      if (usdtValue < 10) {
         return new Response(JSON.stringify({
           success: false,
-          error: `Valor líquido (${netUsdtValue.toFixed(2)} USDT) abaixo do mínimo de 10 USDT. Aumente o valor.`,
+          error: `Valor (${usdtValue.toFixed(2)} USDT) abaixo do mínimo de 10 USDT. Aumente o valor.`,
           coins: currentCoins,
         }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
@@ -703,7 +699,7 @@ serve(async (req) => {
         .from('imch_transfers')
         .insert({
           admin_email: ADMIN_EMAIL,
-          amount_usdt: netUsdtValue,
+          amount_usdt: usdtValue,
           coins_transferred: coinsToWithdraw,
           status: 'processing',
         })
@@ -713,7 +709,7 @@ serve(async (req) => {
       if (insertError) throw insertError;
       
       // Execute Bybit withdrawal to external wallet
-      const withdrawResult = await withdrawToExternalWallet(netUsdtValue.toFixed(2), walletAddress, "ETH");
+      const withdrawResult = await withdrawToExternalWallet(usdtValue.toFixed(2), walletAddress, "ETH");
       
       if (withdrawResult.success) {
         await supabase
@@ -734,13 +730,11 @@ serve(async (req) => {
         return new Response(JSON.stringify({
           success: true,
           status: "completed",
-          message: `Saque de ${netUsdtValue.toFixed(2)} USDT iniciado para ${walletAddress.substring(0, 10)}...`,
+          message: `Saque de ${usdtValue.toFixed(2)} USDT iniciado para ${walletAddress.substring(0, 10)}...`,
           withdrawId: withdrawResult.withdrawId,
           coins: remainingCoins,
           details: {
-            grossAmount: usdtValue,
-            serviceFee: serviceFee,
-            netAmount: netUsdtValue,
+            amount: usdtValue,
             walletAddress: walletAddress,
             network: "ERC20 (Ethereum)",
           }
