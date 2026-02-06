@@ -25,16 +25,13 @@
    const [walletAddress, setWalletAddress] = useState('');
    const [inputMode, setInputMode] = useState<'coins' | 'usdt'>('usdt');
  
-   const SERVICE_FEE_PERCENT = 0.30; // 30%
-   const MIN_WITHDRAWAL_USDT = 10;
- 
-   const coinsValue = parseFloat(inputCoins) || 0;
-   const grossUsdtValue = coinsValue * 100;
-   const serviceFee = grossUsdtValue * SERVICE_FEE_PERCENT;
-   const netUsdtValue = grossUsdtValue - serviceFee;
-   
-   const isValidAddress = /^0x[a-fA-F0-9]{40}$/.test(walletAddress);
-   const isValidAmount = coinsValue > 0 && coinsValue <= currentCoins && netUsdtValue >= MIN_WITHDRAWAL_USDT;
+  const MIN_WITHDRAWAL_USDT = 10;
+
+  const coinsValue = parseFloat(inputCoins) || 0;
+  const usdtValue = coinsValue * 100;
+  
+  const isValidAddress = /^0x[a-fA-F0-9]{40}$/.test(walletAddress);
+  const isValidAmount = coinsValue > 0 && coinsValue <= currentCoins && usdtValue >= MIN_WITHDRAWAL_USDT;
    const isValid = isValidAddress && isValidAmount;
  
    const handleCoinsChange = (value: string) => {
@@ -110,16 +107,16 @@
  
            {/* Amount input */}
            <div className="space-y-2">
-             <Label className="text-muted-foreground">
-               {inputMode === 'usdt' ? 'Valor bruto em USDT' : 'Quantidade de IMCH'}
-             </Label>
-             <div className="relative">
-               <Input
-                 type="text"
-                 inputMode="decimal"
-                 placeholder="0.00"
-                 value={inputMode === 'usdt' ? (grossUsdtValue > 0 ? grossUsdtValue.toFixed(2) : '') : inputCoins}
-                 onChange={(e) => inputMode === 'usdt' ? handleUsdtChange(e.target.value) : handleCoinsChange(e.target.value)}
+              <Label className="text-muted-foreground">
+                {inputMode === 'usdt' ? 'Valor em USDT' : 'Quantidade de IMCH'}
+              </Label>
+              <div className="relative">
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="0.00"
+                  value={inputMode === 'usdt' ? (usdtValue > 0 ? usdtValue.toFixed(2) : '') : inputCoins}
+                  onChange={(e) => inputMode === 'usdt' ? handleUsdtChange(e.target.value) : handleCoinsChange(e.target.value)}
                  className="bg-card border-border text-foreground text-lg pr-16 font-mono"
                />
                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
@@ -149,26 +146,18 @@
              )}
            </div>
  
-           {/* Fee breakdown */}
-           {coinsValue > 0 && (
-             <div className="bg-muted/30 rounded-lg p-3 space-y-1 text-sm">
-               <div className="flex justify-between">
-                 <span className="text-muted-foreground">Valor bruto:</span>
-                 <span className="text-foreground">{grossUsdtValue.toFixed(2)} USDT</span>
-               </div>
-               <div className="flex justify-between text-yellow-500">
-                 <span>Taxa de serviço (30%):</span>
-                 <span>-{serviceFee.toFixed(2)} USDT</span>
-               </div>
-               <div className="flex justify-between font-bold border-t border-border pt-1 mt-1">
-                 <span className="text-foreground">Você recebe:</span>
-                 <span className="text-primary">{netUsdtValue.toFixed(2)} USDT</span>
-               </div>
-             </div>
-           )}
- 
-           {/* Minimum warning */}
-           {coinsValue > 0 && netUsdtValue < MIN_WITHDRAWAL_USDT && (
+            {/* Amount display */}
+            {coinsValue > 0 && (
+              <div className="bg-muted/30 rounded-lg p-3 space-y-1 text-sm">
+                <div className="flex justify-between font-bold">
+                  <span className="text-foreground">Você recebe:</span>
+                  <span className="text-primary">{usdtValue.toFixed(2)} USDT</span>
+                </div>
+              </div>
+            )}
+
+            {/* Minimum warning */}
+            {coinsValue > 0 && usdtValue < MIN_WITHDRAWAL_USDT && (
              <Alert variant="destructive">
                <AlertTriangle className="h-4 w-4" />
                <AlertDescription>
