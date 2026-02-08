@@ -6,7 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { UserProfileCard } from '@/components/profile/UserProfileCard';
-import { SendTransferForm } from '@/components/profile/SendTransferForm';
+import { TransferHub } from '@/components/profile/TransferHub';
 import { TransferHistoryList } from '@/components/profile/TransferHistoryList';
 import { AuditLogList } from '@/components/profile/AuditLogList';
 import { TwoFactorAuth } from '@/components/profile/TwoFactorAuth';
@@ -123,10 +123,7 @@ export default function Profile() {
 
           {/* Transfer Tab */}
           <TabsContent value="transfer" className="mt-0">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <SendTransferForm />
-              <TransferHistoryList />
-            </div>
+            <TransferHub />
           </TabsContent>
 
           {/* History Tab */}
