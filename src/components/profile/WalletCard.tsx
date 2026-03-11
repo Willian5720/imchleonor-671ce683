@@ -301,42 +301,7 @@ export const WalletCard: React.FC = () => {
           </Button>
         </div>
 
-        {/* Broker Transfer Buttons */}
-        <BrokerButtons onSelect={handleBrokerSelect} />
-
-        {/* User Transfer Button */}
-        <div className="space-y-3">
-          <h3 className="text-sm font-medium text-muted-foreground">Transferências</h3>
-          <Button
-            onClick={() => setUserTransferOpen(true)}
-            variant="outline"
-            className="w-full h-14 justify-start gap-4 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border-primary/30 hover:border-primary/50"
-          >
-            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-              <Users className="h-5 w-5 text-primary" />
-            </div>
-            <div className="text-left">
-              <p className="font-medium">Transferir para Usuário</p>
-              <p className="text-xs text-muted-foreground">Envie IMCH para outros usuários da plataforma</p>
-            </div>
-          </Button>
-        </div>
       </div>
-
-      {/* Broker Transfer Dialog */}
-      <BrokerTransferDialog
-        open={brokerModalOpen}
-        onOpenChange={setBrokerModalOpen}
-        brokerId={selectedBroker}
-        onSuccess={refetch}
-      />
-
-      {/* User Transfer Dialog */}
-      <UserTransferDialog
-        open={userTransferOpen}
-        onOpenChange={setUserTransferOpen}
-        onSuccess={refetch}
-      />
 
       {/* Add/Withdraw Modal */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
