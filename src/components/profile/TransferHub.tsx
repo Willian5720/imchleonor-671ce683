@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import {
   Send,
   Users,
@@ -15,8 +14,6 @@ import {
   AlertCircle,
   Wallet,
   Info,
-  Check,
-  ExternalLink,
 } from 'lucide-react';
 import { useUserProfile, useUserTransfers } from '@/hooks/useUserProfile';
 import { useDerivIntegration } from '@/hooks/useDerivIntegration';
@@ -26,9 +23,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast as sonnerToast } from 'sonner';
 
-type TransferType = 'p2p' | 'deriv' | 'bybit' | 'binance';
+type TransferType = 'p2p' | 'deriv' | 'bybit' | 'binance' | 'redotpay';
 
-// Logos como componentes inline para evitar dependências externas
 const DerivLogo = () => (
   <div className="w-8 h-8 rounded-full bg-[#FF444F] flex items-center justify-center">
     <span className="text-white font-bold text-xs">D</span>
@@ -47,6 +43,12 @@ const BinanceLogo = () => (
   </div>
 );
 
+const RedotpayLogo = () => (
+  <div className="w-8 h-8 rounded-full bg-[#E8373E] flex items-center justify-center">
+    <span className="text-white font-bold text-xs">R</span>
+  </div>
+);
+
 export function TransferHub() {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -56,7 +58,7 @@ export function TransferHub() {
   const { IMCH_TO_USD } = useExchangeRates();
 
   const [selectedType, setSelectedType] = useState<TransferType | null>(null);
-  
+
   // P2P States
   const [recipientEmail, setRecipientEmail] = useState('');
   const [p2pAmount, setP2pAmount] = useState('');
@@ -77,13 +79,18 @@ export function TransferHub() {
   const [binanceAddress, setBinanceAddress] = useState('');
   const [binanceProcessing, setBinanceProcessing] = useState(false);
 
+  // Redotpay States
+  const [redotpayAmount, setRedotpayAmount] = useState('');
+  const [redotpayAddress, setRedotpayAddress] = useState('');
+  const [redotpayProcessing, setRedotpayProcessing] = useState(false);
+
   const balance = profile?.coins || 0;
 
   // P2P Transfer Handler
   const handleP2PTransfer = async () => {
     setP2pError(null);
     const amountNum = parseFloat(p2pAmount);
-    
+
     if (!recipientEmail || !amountNum || amountNum <= 0) {
       setP2pError('Preencha todos os campos corretamente.');
       return;
@@ -128,33 +135,39 @@ export function TransferHub() {
     }
   };
 
-  // Bybit Transfer Handler
-  const handleBybitTransfer = async () => {
-    const amount = parseFloat(bybitAmount);
-    if (!bybitAddress || isNaN(amount) || amount <= 0) return;
-    
-    const usdtValue = amount * 100;
+  // Generic ERC20 withdrawal handler (used by Bybit, Binance, Redotpay)
+  const handleERC20Withdrawal = async (
+    amount: string,
+    address: string,
+    platform: string,
+    setProcessing: (v: boolean) => void,
+    resetFields: () => void,
+  ) => {
+    const amountNum = parseFloat(amount);
+    if (!address || isNaN(amountNum) || amountNum <= 0) return;
+
+    const usdtValue = amountNum * 100;
     if (usdtValue < 1) {
       sonnerToast.error('Valor mínimo é 1 USDT');
       return;
     }
-    if (amount > balance) {
+    if (amountNum > balance) {
       sonnerToast.error('Saldo insuficiente');
       return;
     }
-    if (!/^0x[a-fA-F0-9]{40}$/.test(bybitAddress)) {
+    if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
       sonnerToast.error('Endereço ERC20 inválido');
       return;
     }
 
-    setBybitProcessing(true);
+    setProcessing(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const { data, error } = await supabase.functions.invoke('bybit-transfer', {
         body: {
           action: 'withdraw_to_wallet',
-          coins: amount,
-          wallet_address: bybitAddress,
+          coins: amountNum,
+          wallet_address: address,
         },
         headers: {
           Authorization: `Bearer ${session?.access_token}`,
@@ -164,46 +177,34 @@ export function TransferHub() {
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || 'Erro no saque');
 
-      sonnerToast.success(`${usdtValue.toFixed(2)} USDT enviados para sua carteira Bybit!`);
-      setBybitAmount('');
-      setBybitAddress('');
+      sonnerToast.success(`${usdtValue.toFixed(2)} USDT enviados para ${platform}!`);
+      resetFields();
       setSelectedType(null);
       refetchProfile();
     } catch (err) {
       sonnerToast.error(err instanceof Error ? err.message : 'Erro ao processar saque');
     } finally {
-      setBybitProcessing(false);
+      setProcessing(false);
     }
   };
 
-  // Binance Transfer Handler (placeholder - similar structure)
-  const handleBinanceTransfer = async () => {
-    const amount = parseFloat(binanceAmount);
-    if (!binanceAddress || isNaN(amount) || amount <= 0) return;
-    
-    const usdtValue = amount * 100;
-    if (usdtValue < 10) {
-      sonnerToast.error('Valor mínimo é 10 USDT para Binance');
-      return;
-    }
-    if (amount > balance) {
-      sonnerToast.error('Saldo insuficiente');
-      return;
-    }
-    if (!/^0x[a-fA-F0-9]{40}$/.test(binanceAddress)) {
-      sonnerToast.error('Endereço ERC20 inválido');
-      return;
-    }
+  const handleBybitTransfer = () =>
+    handleERC20Withdrawal(bybitAmount, bybitAddress, 'Bybit', setBybitProcessing, () => {
+      setBybitAmount('');
+      setBybitAddress('');
+    });
 
-    setBinanceProcessing(true);
-    try {
-      // TODO: Implement Binance API integration
-      // Por enquanto, mostrar mensagem de em breve
-      sonnerToast.info('Integração Binance em desenvolvimento. Em breve!');
-    } finally {
-      setBinanceProcessing(false);
-    }
-  };
+  const handleBinanceTransfer = () =>
+    handleERC20Withdrawal(binanceAmount, binanceAddress, 'Binance', setBinanceProcessing, () => {
+      setBinanceAmount('');
+      setBinanceAddress('');
+    });
+
+  const handleRedotpayTransfer = () =>
+    handleERC20Withdrawal(redotpayAmount, redotpayAddress, 'Redotpay', setRedotpayProcessing, () => {
+      setRedotpayAmount('');
+      setRedotpayAddress('');
+    });
 
   const transferOptions = [
     {
@@ -233,7 +234,13 @@ export function TransferHub() {
       description: 'Sacar USDT para sua carteira Binance',
       icon: <BinanceLogo />,
       color: 'from-[#F0B90B]/20 to-[#F0B90B]/5 border-[#F0B90B]/30',
-      badge: 'Em breve',
+    },
+    {
+      type: 'redotpay' as TransferType,
+      title: 'Redotpay',
+      description: 'Sacar USDT para sua carteira Redotpay',
+      icon: <RedotpayLogo />,
+      color: 'from-[#E8373E]/20 to-[#E8373E]/5 border-[#E8373E]/30',
     },
   ];
 
@@ -241,7 +248,6 @@ export function TransferHub() {
   if (!selectedType) {
     return (
       <div className="space-y-6">
-        {/* Balance Header */}
         <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/30">
           <CardContent className="py-4">
             <div className="flex items-center justify-between">
@@ -264,13 +270,12 @@ export function TransferHub() {
           </CardContent>
         </Card>
 
-        {/* Transfer Options Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {transferOptions.map((option) => (
             <Card
               key={option.type}
               className={`bg-gradient-to-br ${option.color} cursor-pointer hover:scale-[1.02] transition-transform`}
-              onClick={() => !option.badge && setSelectedType(option.type)}
+              onClick={() => setSelectedType(option.type)}
             >
               <CardContent className="p-4">
                 <div className="flex items-start gap-4">
@@ -278,14 +283,7 @@ export function TransferHub() {
                     {option.icon}
                   </div>
                   <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold">{option.title}</h3>
-                      {option.badge && (
-                        <Badge variant="secondary" className="text-xs">
-                          {option.badge}
-                        </Badge>
-                      )}
-                    </div>
+                    <h3 className="font-semibold">{option.title}</h3>
                     <p className="text-sm text-muted-foreground mt-1">{option.description}</p>
                   </div>
                   <ArrowUpRight className="w-5 h-5 text-muted-foreground" />
@@ -303,18 +301,12 @@ export function TransferHub() {
     return (
       <Card className="bg-gradient-to-br from-card/80 to-card border-border/50 max-w-lg mx-auto">
         <CardHeader>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setSelectedType(null)}>
-              ← Voltar
-            </Button>
-          </div>
+          <Button variant="ghost" size="sm" className="w-fit" onClick={() => setSelectedType(null)}>← Voltar</Button>
           <CardTitle className="text-lg flex items-center gap-2">
             <Users className="w-5 h-5 text-primary" />
             Enviar para Usuário IMCHLEONOR
           </CardTitle>
-          <CardDescription>
-            Transfira COINS para outro usuário da plataforma
-          </CardDescription>
+          <CardDescription>Transfira COINS para outro usuário da plataforma</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={(e) => { e.preventDefault(); handleP2PTransfer(); }} className="space-y-4">
@@ -335,60 +327,23 @@ export function TransferHub() {
 
             <div className="space-y-2">
               <Label>Email do Destinatário</Label>
-              <Input
-                type="email"
-                value={recipientEmail}
-                onChange={(e) => setRecipientEmail(e.target.value)}
-                placeholder="usuario@exemplo.com"
-                className="bg-background/50"
-              />
+              <Input type="email" value={recipientEmail} onChange={(e) => setRecipientEmail(e.target.value)} placeholder="usuario@exemplo.com" className="bg-background/50" />
             </div>
 
             <div className="space-y-2">
               <Label>Quantidade (COINS)</Label>
-              <Input
-                type="number"
-                value={p2pAmount}
-                onChange={(e) => setP2pAmount(e.target.value)}
-                placeholder="0"
-                min="1"
-                className="bg-background/50"
-              />
+              <Input type="number" value={p2pAmount} onChange={(e) => setP2pAmount(e.target.value)} placeholder="0" min="1" className="bg-background/50" />
               <div className="flex gap-2 flex-wrap">
                 {[10, 50, 100, 500].map((qa) => (
-                  <Button
-                    key={qa}
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="text-xs"
-                    onClick={() => setP2pAmount(qa.toString())}
-                    disabled={qa > balance}
-                  >
-                    {qa}
-                  </Button>
+                  <Button key={qa} type="button" variant="outline" size="sm" className="text-xs" onClick={() => setP2pAmount(qa.toString())} disabled={qa > balance}>{qa}</Button>
                 ))}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="text-xs"
-                  onClick={() => setP2pAmount(balance.toString())}
-                  disabled={balance <= 0}
-                >
-                  Máx
-                </Button>
+                <Button type="button" variant="outline" size="sm" className="text-xs" onClick={() => setP2pAmount(balance.toString())} disabled={balance <= 0}>Máx</Button>
               </div>
             </div>
 
             <div className="space-y-2">
               <Label>Nota (opcional)</Label>
-              <Textarea
-                value={p2pNote}
-                onChange={(e) => setP2pNote(e.target.value)}
-                placeholder="Adicione uma mensagem..."
-                className="bg-background/50 min-h-[60px]"
-              />
+              <Textarea value={p2pNote} onChange={(e) => setP2pNote(e.target.value)} placeholder="Adicione uma mensagem..." className="bg-background/50 min-h-[60px]" />
             </div>
 
             <Button type="submit" className="w-full" disabled={p2pSending}>
@@ -409,18 +364,9 @@ export function TransferHub() {
     return (
       <Card className="bg-gradient-to-br from-card/80 to-card border-border/50 max-w-lg mx-auto">
         <CardHeader>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setSelectedType(null)}>
-              ← Voltar
-            </Button>
-          </div>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <DerivLogo />
-            Depositar na Deriv
-          </CardTitle>
-          <CardDescription>
-            Converta IMCH Coins em saldo USD na sua conta Deriv
-          </CardDescription>
+          <Button variant="ghost" size="sm" className="w-fit" onClick={() => setSelectedType(null)}>← Voltar</Button>
+          <CardTitle className="text-lg flex items-center gap-2"><DerivLogo /> Depositar na Deriv</CardTitle>
+          <CardDescription>Converta IMCH Coins em saldo USD na sua conta Deriv</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-between">
@@ -430,27 +376,10 @@ export function TransferHub() {
 
           <div className="space-y-2">
             <Label>Quantidade (IMCH)</Label>
-            <Input
-              type="number"
-              value={derivAmount}
-              onChange={(e) => setDerivAmount(e.target.value)}
-              placeholder="0"
-              min="1"
-              className="bg-background/50"
-            />
+            <Input type="number" value={derivAmount} onChange={(e) => setDerivAmount(e.target.value)} placeholder="0" min="1" className="bg-background/50" />
             <div className="flex gap-2 flex-wrap">
               {[100, 500, 1000, 5000].map((amt) => (
-                <Button
-                  key={amt}
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="text-xs"
-                  onClick={() => setDerivAmount(amt.toString())}
-                  disabled={amt > balance}
-                >
-                  {amt.toLocaleString()}
-                </Button>
+                <Button key={amt} type="button" variant="outline" size="sm" className="text-xs" onClick={() => setDerivAmount(amt.toString())} disabled={amt > balance}>{amt.toLocaleString()}</Button>
               ))}
             </div>
           </div>
@@ -468,11 +397,7 @@ export function TransferHub() {
             </div>
           )}
 
-          <Button
-            onClick={handleDerivTransfer}
-            disabled={derivLoading || derivAmountNum <= 0 || derivAmountNum > balance}
-            className="w-full"
-          >
+          <Button onClick={handleDerivTransfer} disabled={derivLoading || derivAmountNum <= 0 || derivAmountNum > balance} className="w-full">
             {derivLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ArrowUpRight className="w-4 h-4 mr-2" />}
             Depositar na Deriv
           </Button>
@@ -481,27 +406,25 @@ export function TransferHub() {
     );
   }
 
-  // Bybit Transfer Form
-  if (selectedType === 'bybit') {
-    const bybitAmountNum = parseFloat(bybitAmount) || 0;
-    const usdtValue = bybitAmountNum * 100;
-    const isValidAddress = /^0x[a-fA-F0-9]{40}$/.test(bybitAddress);
+  // ERC20 Withdrawal Form (Bybit, Binance, Redotpay)
+  const erc20Config: Record<string, { logo: JSX.Element; name: string; amount: string; setAmount: (v: string) => void; address: string; setAddress: (v: string) => void; processing: boolean; handler: () => void }> = {
+    bybit: { logo: <BybitLogo />, name: 'Bybit', amount: bybitAmount, setAmount: setBybitAmount, address: bybitAddress, setAddress: setBybitAddress, processing: bybitProcessing, handler: handleBybitTransfer },
+    binance: { logo: <BinanceLogo />, name: 'Binance', amount: binanceAmount, setAmount: setBinanceAmount, address: binanceAddress, setAddress: setBinanceAddress, processing: binanceProcessing, handler: handleBinanceTransfer },
+    redotpay: { logo: <RedotpayLogo />, name: 'Redotpay', amount: redotpayAmount, setAmount: setRedotpayAmount, address: redotpayAddress, setAddress: setRedotpayAddress, processing: redotpayProcessing, handler: handleRedotpayTransfer },
+  };
+
+  const config = erc20Config[selectedType];
+  if (config) {
+    const amountNum = parseFloat(config.amount) || 0;
+    const usdtValue = amountNum * 100;
+    const isValidAddress = /^0x[a-fA-F0-9]{40}$/.test(config.address);
 
     return (
       <Card className="bg-gradient-to-br from-card/80 to-card border-border/50 max-w-lg mx-auto">
         <CardHeader>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setSelectedType(null)}>
-              ← Voltar
-            </Button>
-          </div>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <BybitLogo />
-            Sacar para Bybit
-          </CardTitle>
-          <CardDescription>
-            Envie USDT para sua carteira Bybit via ERC20 (Ethereum)
-          </CardDescription>
+          <Button variant="ghost" size="sm" className="w-fit" onClick={() => setSelectedType(null)}>← Voltar</Button>
+          <CardTitle className="text-lg flex items-center gap-2">{config.logo} Sacar para {config.name}</CardTitle>
+          <CardDescription>Envie USDT para sua carteira {config.name} via ERC20 (Ethereum)</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-between">
@@ -514,27 +437,10 @@ export function TransferHub() {
 
           <div className="space-y-2">
             <Label>Quantidade (IMCH)</Label>
-            <Input
-              type="number"
-              value={bybitAmount}
-              onChange={(e) => setBybitAmount(e.target.value)}
-              placeholder="0"
-              step="0.0001"
-              className="bg-background/50"
-            />
+            <Input type="number" value={config.amount} onChange={(e) => config.setAmount(e.target.value)} placeholder="0" step="0.0001" className="bg-background/50" />
             <div className="flex gap-2 flex-wrap">
               {[25, 50, 75, 100].map((percent) => (
-                <Button
-                  key={percent}
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="text-xs"
-                  onClick={() => setBybitAmount(((balance * percent) / 100).toFixed(4))}
-                  disabled={balance <= 0}
-                >
-                  {percent}%
-                </Button>
+                <Button key={percent} type="button" variant="outline" size="sm" className="text-xs" onClick={() => config.setAmount(((balance * percent) / 100).toFixed(4))} disabled={balance <= 0}>{percent}%</Button>
               ))}
             </div>
           </div>
@@ -542,21 +448,15 @@ export function TransferHub() {
           <div className="space-y-2">
             <Label className="flex items-center gap-2">
               <Wallet className="w-4 h-4" />
-              Endereço ERC20 (Bybit)
+              Endereço ERC20 ({config.name})
             </Label>
-            <Input
-              type="text"
-              value={bybitAddress}
-              onChange={(e) => setBybitAddress(e.target.value.trim())}
-              placeholder="0x..."
-              className="bg-background/50 font-mono text-sm"
-            />
-            {bybitAddress && !isValidAddress && (
+            <Input type="text" value={config.address} onChange={(e) => config.setAddress(e.target.value.trim())} placeholder="0x..." className="bg-background/50 font-mono text-sm" />
+            {config.address && !isValidAddress && (
               <p className="text-destructive text-xs">Endereço inválido. Use um endereço ERC20 válido.</p>
             )}
           </div>
 
-          {bybitAmountNum > 0 && (
+          {amountNum > 0 && (
             <div className="p-3 rounded-lg bg-muted/50 space-y-2">
               <div className="flex justify-between text-sm font-bold">
                 <span>Você recebe:</span>
@@ -569,53 +469,14 @@ export function TransferHub() {
             <Alert>
               <Info className="h-4 w-4" />
               <AlertDescription className="text-xs">
-                A rede ERC20 da Bybit exige mínimo de 10 USDT por transferência.
+                A rede ERC20 exige mínimo de 10 USDT por transferência.
               </AlertDescription>
             </Alert>
           )}
 
-          <Button
-            onClick={handleBybitTransfer}
-            disabled={bybitProcessing || bybitAmountNum <= 0 || bybitAmountNum > balance || !isValidAddress || usdtValue < 1}
-            className="w-full"
-          >
-            {bybitProcessing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ArrowUpRight className="w-4 h-4 mr-2" />}
-            Sacar para Bybit
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Binance Transfer Form
-  if (selectedType === 'binance') {
-    return (
-      <Card className="bg-gradient-to-br from-card/80 to-card border-border/50 max-w-lg mx-auto">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setSelectedType(null)}>
-              ← Voltar
-            </Button>
-          </div>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <BinanceLogo />
-            Sacar para Binance
-          </CardTitle>
-          <CardDescription>
-            Envie USDT para sua carteira Binance via ERC20
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Alert>
-            <Info className="h-4 w-4" />
-            <AlertDescription>
-              A integração com a Binance está em desenvolvimento. Em breve você poderá sacar diretamente para sua carteira Binance.
-            </AlertDescription>
-          </Alert>
-
-          <Button variant="outline" className="w-full" disabled>
-            <ExternalLink className="w-4 h-4 mr-2" />
-            Em Breve
+          <Button onClick={config.handler} disabled={config.processing || amountNum <= 0 || amountNum > balance || !isValidAddress || usdtValue < 1} className="w-full">
+            {config.processing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ArrowUpRight className="w-4 h-4 mr-2" />}
+            Sacar para {config.name}
           </Button>
         </CardContent>
       </Card>
