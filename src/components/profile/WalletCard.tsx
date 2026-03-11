@@ -70,13 +70,6 @@ export const WalletCard: React.FC = () => {
   const [inputAmount, setInputAmount] = useState('');
   const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
-  
-  // Broker transfer states
-  const [brokerModalOpen, setBrokerModalOpen] = useState(false);
-  const [selectedBroker, setSelectedBroker] = useState<string | null>(null);
-  
-  // User transfer state
-  const [userTransferOpen, setUserTransferOpen] = useState(false);
 
   const loading = profileLoading || ratesLoading;
   const imchBalance = profile?.coins || 0;
