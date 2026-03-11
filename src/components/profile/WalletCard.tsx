@@ -14,15 +14,12 @@ import {
   Wallet,
   Clock,
   CheckCircle2,
-  Users,
 } from 'lucide-react';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useExchangeRates } from '@/hooks/useExchangeRates';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
-import { BrokerButtons, BrokerTransferDialog } from './BrokerTransferDialog';
-import { UserTransferDialog } from './UserTransferDialog';
 
 type Step = 'card' | 'amount' | 'payment' | 'processing' | 'success';
 
