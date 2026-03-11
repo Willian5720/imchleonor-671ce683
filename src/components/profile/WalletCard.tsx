@@ -14,15 +14,12 @@ import {
   Wallet,
   Clock,
   CheckCircle2,
-  Users,
 } from 'lucide-react';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useExchangeRates } from '@/hooks/useExchangeRates';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
-import { BrokerButtons, BrokerTransferDialog } from './BrokerTransferDialog';
-import { UserTransferDialog } from './UserTransferDialog';
 
 type Step = 'card' | 'amount' | 'payment' | 'processing' | 'success';
 
@@ -73,13 +70,6 @@ export const WalletCard: React.FC = () => {
   const [inputAmount, setInputAmount] = useState('');
   const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
-  
-  // Broker transfer states
-  const [brokerModalOpen, setBrokerModalOpen] = useState(false);
-  const [selectedBroker, setSelectedBroker] = useState<string | null>(null);
-  
-  // User transfer state
-  const [userTransferOpen, setUserTransferOpen] = useState(false);
 
   const loading = profileLoading || ratesLoading;
   const imchBalance = profile?.coins || 0;
@@ -113,10 +103,6 @@ export const WalletCard: React.FC = () => {
     else if (step === 'amount') closeModal();
   };
 
-  const handleBrokerSelect = (brokerId: string) => {
-    setSelectedBroker(brokerId);
-    setBrokerModalOpen(true);
-  };
 
   // Cálculos para depósito (AOA -> IMCH)
   const aoaValue = modalType === 'add' ? (parseFloat(inputAmount) || 0) : 0;
@@ -301,42 +287,7 @@ export const WalletCard: React.FC = () => {
           </Button>
         </div>
 
-        {/* Broker Transfer Buttons */}
-        <BrokerButtons onSelect={handleBrokerSelect} />
-
-        {/* User Transfer Button */}
-        <div className="space-y-3">
-          <h3 className="text-sm font-medium text-muted-foreground">Transferências</h3>
-          <Button
-            onClick={() => setUserTransferOpen(true)}
-            variant="outline"
-            className="w-full h-14 justify-start gap-4 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border-primary/30 hover:border-primary/50"
-          >
-            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-              <Users className="h-5 w-5 text-primary" />
-            </div>
-            <div className="text-left">
-              <p className="font-medium">Transferir para Usuário</p>
-              <p className="text-xs text-muted-foreground">Envie IMCH para outros usuários da plataforma</p>
-            </div>
-          </Button>
-        </div>
       </div>
-
-      {/* Broker Transfer Dialog */}
-      <BrokerTransferDialog
-        open={brokerModalOpen}
-        onOpenChange={setBrokerModalOpen}
-        brokerId={selectedBroker}
-        onSuccess={refetch}
-      />
-
-      {/* User Transfer Dialog */}
-      <UserTransferDialog
-        open={userTransferOpen}
-        onOpenChange={setUserTransferOpen}
-        onSuccess={refetch}
-      />
 
       {/* Add/Withdraw Modal */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
