@@ -103,10 +103,6 @@ export const WalletCard: React.FC = () => {
     else if (step === 'amount') closeModal();
   };
 
-  const handleBrokerSelect = (brokerId: string) => {
-    setSelectedBroker(brokerId);
-    setBrokerModalOpen(true);
-  };
 
   // Cálculos para depósito (AOA -> IMCH)
   const aoaValue = modalType === 'add' ? (parseFloat(inputAmount) || 0) : 0;
