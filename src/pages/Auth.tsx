@@ -69,74 +69,8 @@ const Auth = () => {
   }, []);
 
   const check2FAAndNavigate = useCallback(async () => {
-    try {
-      // First check AAL level to understand current auth state
-      const { data: aalData, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-      
-      if (aalError) {
-        console.error('Error checking AAL:', aalError);
-        // If there's an error checking AAL, try to list factors directly
-      }
-
-      // If user already has AAL2, they're fully authenticated
-      if (aalData?.currentLevel === 'aal2') {
-        navigate('/', { replace: true });
-        return;
-      }
-
-      // Now check factors
-      const { data: factorsData, error: factorsError } = await supabase.auth.mfa.listFactors();
-      
-      if (factorsError) {
-        console.error('Error checking MFA factors:', factorsError);
-        // If we can't check factors, allow navigation but log warning
-        toast({
-          title: 'Aviso',
-          description: 'Não foi possível verificar o status do 2FA.',
-          variant: 'destructive',
-        });
-        navigate('/', { replace: true });
-        return;
-      }
-
-      const verifiedFactor = factorsData.totp.find(f => f.status === 'verified');
-      const pendingFactor = factorsData.totp.find(f => f.status !== 'verified');
-      
-      if (verifiedFactor) {
-        // User has 2FA enabled but is at AAL1, needs to verify
-        if (aalData?.currentLevel === 'aal1' && aalData?.nextLevel === 'aal2') {
-          setStep('2fa-verify');
-          setCheckingSession(false);
-          return;
-        }
-        
-        // User is fully authenticated with 2FA
-        navigate('/', { replace: true });
-      } else {
-        // Clean up any pending/unverified factors before setting up new one
-        if (pendingFactor) {
-          try {
-            await supabase.auth.mfa.unenroll({ factorId: pendingFactor.id });
-          } catch (e) {
-            console.log('Could not clean pending factor:', e);
-          }
-        }
-        
-        // User doesn't have 2FA set up - require setup
-        setStep('2fa-setup');
-        setCheckingSession(false);
-      }
-    } catch (error) {
-      console.error('Error in check2FAAndNavigate:', error);
-      toast({
-        title: 'Erro',
-        description: 'Erro ao verificar autenticação. Tente novamente.',
-        variant: 'destructive',
-      });
-      setStep('login');
-      setCheckingSession(false);
-    }
-  }, [navigate, toast]);
+    navigate('/', { replace: true });
+  }, [navigate]);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
