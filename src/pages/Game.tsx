@@ -256,8 +256,7 @@ const Game = () => {
 
         {/* Footer */}
         <p className="text-muted-foreground/50 text-xs mt-6 text-center">
-          🔒 Saques via blockchain ERC20 (Ethereum)<br />
-          <span className="text-primary/50">Taxa de serviço: 30%</span>
+          🔒 Saques via blockchain ERC20 (Ethereum)
         </p>
       </div>
 
