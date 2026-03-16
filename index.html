@@ -2,19 +2,19 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     
     <!-- PWA Meta Tags -->
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="NeonMiner" />
-    <meta name="application-name" content="NeonMiner" />
+    <meta name="apple-mobile-web-app-title" content="IMCHLEONOR" />
+    <meta name="application-name" content="IMCHLEONOR" />
     <meta name="theme-color" content="#00ff88" />
     <meta name="msapplication-TileColor" content="#0a0a0f" />
     
-    <title>IMCHLEONOR - IMCH Coin Mining</title>
-    <meta name="description" content="IMCHLEONOR -IMCH Coin">
+    <title>IMCHLEONOR - IMCH Coin</title>
+    <meta name="description" content="IMCHLEONOR - IMCH Coin">
     <meta name="author" content="IMCHLEONOR" />
 
     <!-- PWA Icons -->
@@ -23,19 +23,34 @@
     <link rel="apple-touch-icon" sizes="512x512" href="/pwa-512x512.png" />
     
     <!-- Open Graph -->
-    
-    
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <meta property="og:title" content="IMCHLEONOR - IMCH Coin" />
+    <meta property="og:description" content="IMCHLEONOR - IMCH Coin" />
+    <meta property="og:image" content="/pwa-512x512.png" />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@Lovable" />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-    <meta property="og:title" content="IMCHLEONOR - IMCH Coin Mining">
-  <meta name="twitter:title" content="IMCHLEONOR - IMCH Coin Mining">
-  <meta property="og:description" content="IMCHLEONOR -IMCH Coin">
-  <meta name="twitter:description" content="IMCHLEONOR -IMCH Coin">
-</head>
+    <meta name="twitter:title" content="IMCHLEONOR - IMCH Coin" />
+    <meta name="twitter:description" content="IMCHLEONOR - IMCH Coin" />
+    <meta name="twitter:image" content="/pwa-512x512.png" />
+
+    <style>
+      /* Ensure full viewport on mobile standalone mode */
+      html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        width: 100%;
+        overflow-x: hidden;
+      }
+      /* Safe area insets for notched devices */
+      body {
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+      }
+    </style>
+  </head>
 
   <body>
     <div id="root"></div>
