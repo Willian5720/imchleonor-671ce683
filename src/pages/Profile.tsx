@@ -14,6 +14,7 @@ import { WalletCard } from '@/components/profile/WalletCard';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuditLog } from '@/hooks/useAuditLog';
 import { useUserRole } from '@/hooks/useUserRole';
+import { useTheme } from '@/hooks/useTheme';
 
 export default function Profile() {
   const { signOut, user } = useAuth();
