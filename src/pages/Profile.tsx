@@ -157,10 +157,10 @@ export default function Profile() {
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Sun className="w-4 h-4 text-muted-foreground" />
-                      <Label>Tema Escuro</Label>
+                      {isDark ? <Moon className="w-4 h-4 text-muted-foreground" /> : <Sun className="w-4 h-4 text-muted-foreground" />}
+                      <Label>{isDark ? 'Tema Escuro' : 'Tema Claro'}</Label>
                     </div>
-                    <Switch defaultChecked />
+                    <Switch checked={isDark} onCheckedChange={toggleTheme} />
                   </div>
                   <Separator />
                   <div className="flex items-center justify-between">
