@@ -20,6 +20,7 @@ export default function Profile() {
   const { signOut, user } = useAuth();
   const { logAction } = useAuditLog();
   const { isAdmin } = useUserRole();
+  const { isDark, toggleTheme } = useTheme();
 
   const handleSignOut = async () => {
     await logAction('logout', 'auth');
