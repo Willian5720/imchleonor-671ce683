@@ -114,6 +114,15 @@ serve(async (req) => {
       }
       
       case 'add_balance_aoa': {
+        // SECURITY: Only admins can credit AOA balances
+        const { data: isAdminAoa } = await supabase.rpc('has_role', { _user_id: user.id, _role: 'admin' });
+        if (!isAdminAoa) {
+          return new Response(JSON.stringify({ error: 'Unauthorized: Admin only action' }), {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
         // Converter AOA para IMCH e adicionar ao saldo
         if (!amount_aoa || amount_aoa <= 0) {
           throw new Error('Invalid amount');
