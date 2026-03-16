@@ -317,37 +317,61 @@ export type Database = {
         Row: {
           avatar_url: string | null
           balance_aoa: number
+          binance_avatar_url: string | null
+          binance_profile_link: string | null
           bio: string | null
+          bybit_avatar_url: string | null
+          bybit_profile_link: string | null
           coins: number
           created_at: string
+          deriv_avatar_url: string | null
+          deriv_profile_link: string | null
           display_name: string | null
           email: string | null
           id: string
           phone: string | null
+          redotpay_avatar_url: string | null
+          redotpay_profile_link: string | null
           updated_at: string
         }
         Insert: {
           avatar_url?: string | null
           balance_aoa?: number
+          binance_avatar_url?: string | null
+          binance_profile_link?: string | null
           bio?: string | null
+          bybit_avatar_url?: string | null
+          bybit_profile_link?: string | null
           coins?: number
           created_at?: string
+          deriv_avatar_url?: string | null
+          deriv_profile_link?: string | null
           display_name?: string | null
           email?: string | null
           id: string
           phone?: string | null
+          redotpay_avatar_url?: string | null
+          redotpay_profile_link?: string | null
           updated_at?: string
         }
         Update: {
           avatar_url?: string | null
           balance_aoa?: number
+          binance_avatar_url?: string | null
+          binance_profile_link?: string | null
           bio?: string | null
+          bybit_avatar_url?: string | null
+          bybit_profile_link?: string | null
           coins?: number
           created_at?: string
+          deriv_avatar_url?: string | null
+          deriv_profile_link?: string | null
           display_name?: string | null
           email?: string | null
           id?: string
           phone?: string | null
+          redotpay_avatar_url?: string | null
+          redotpay_profile_link?: string | null
           updated_at?: string
         }
         Relationships: []
