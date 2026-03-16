@@ -1,8 +1,17 @@
 import { useState, useRef } from 'react';
 import { Camera, Loader2, ExternalLink } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+
+const EXCHANGE_URLS: Record<string, string> = {
+  Bybit: 'https://www.bybit.com',
+  Deriv: 'https://www.deriv.com',
+  Binance: 'https://www.binance.com',
+  Redotpay: 'https://www.redotpay.com',
+};
 
 interface ExchangeAvatarProps {
   name: string;
@@ -24,6 +33,7 @@ export function ExchangeAvatar({
   fallbackText,
 }: ExchangeAvatarProps) {
   const [uploading, setUploading] = useState(false);
+  const [open, setOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -64,54 +74,67 @@ export function ExchangeAvatar({
     }
   };
 
+  const exchangeUrl = profileLink || EXCHANGE_URLS[name] || '#';
+
   return (
     <div className="flex flex-col items-center gap-1">
-      <div className="relative group cursor-pointer">
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/gif,image/webp"
-          onChange={handleFileSelect}
-          className="hidden"
-          disabled={uploading}
-        />
-        <Avatar
-          className="w-12 h-12 border-2 border-border hover:border-primary/50 transition-colors"
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <AvatarImage src={avatarUrl || undefined} className="object-cover" />
-          <AvatarFallback className={`${fallbackColor} text-xs font-bold`}>
-            {fallbackText}
-          </AvatarFallback>
-        </Avatar>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/gif,image/webp"
+        onChange={handleFileSelect}
+        className="hidden"
+        disabled={uploading}
+      />
 
-        {uploading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full">
-            <Loader2 className="w-4 h-4 text-white animate-spin" />
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <div className="relative group cursor-pointer">
+            <Avatar className="w-12 h-12 border-2 border-border hover:border-primary/50 transition-colors">
+              <AvatarImage src={avatarUrl || undefined} className="object-cover" />
+              <AvatarFallback className={`${fallbackColor} text-xs font-bold`}>
+                {fallbackText}
+              </AvatarFallback>
+            </Avatar>
+
+            {uploading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full">
+                <Loader2 className="w-4 h-4 text-white animate-spin" />
+              </div>
+            )}
           </div>
-        )}
+        </PopoverTrigger>
 
-        <div
-          className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-muted flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-          onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
-        >
-          <Camera className="w-3 h-3 text-muted-foreground" />
-        </div>
-      </div>
+        <PopoverContent className="w-48 p-2" side="bottom" align="center">
+          <div className="flex flex-col gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start gap-2 text-xs"
+              onClick={() => {
+                setOpen(false);
+                fileInputRef.current?.click();
+              }}
+            >
+              <Camera className="w-3.5 h-3.5" />
+              Mudar foto de perfil
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start gap-2 text-xs"
+              asChild
+            >
+              <a href={exchangeUrl} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)}>
+                <ExternalLink className="w-3.5 h-3.5" />
+                Ir para {name}
+              </a>
+            </Button>
+          </div>
+        </PopoverContent>
+      </Popover>
 
-      {profileLink ? (
-        <a
-          href={profileLink}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-[10px] text-muted-foreground hover:text-primary flex items-center gap-0.5 transition-colors"
-        >
-          {name}
-          <ExternalLink className="w-2.5 h-2.5" />
-        </a>
-      ) : (
-        <span className="text-[10px] text-muted-foreground">{name}</span>
-      )}
+      <span className="text-[10px] text-muted-foreground">{name}</span>
     </div>
   );
 }

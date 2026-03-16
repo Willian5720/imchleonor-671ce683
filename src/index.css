@@ -60,6 +60,56 @@
     --shadow-neon-green: 0 0 20px hsl(var(--neon-green) / 0.5), 0 0 40px hsl(var(--neon-green) / 0.3);
     --shadow-neon-purple: 0 0 20px hsl(var(--neon-purple) / 0.5), 0 0 40px hsl(var(--neon-purple) / 0.3);
   }
+
+  .light {
+    --background: 0 0% 98%;
+    --foreground: 240 10% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 10%;
+
+    --primary: 150 80% 35%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 270 50% 55%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 240 5% 92%;
+    --muted-foreground: 240 5% 40%;
+
+    --accent: 270 50% 55%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 240 5% 85%;
+    --input: 240 5% 85%;
+    --ring: 150 80% 35%;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 240 10% 10%;
+    --sidebar-primary: 150 80% 35%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 270 50% 55%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 240 5% 85%;
+    --sidebar-ring: 150 80% 35%;
+
+    --neon-green: 150 80% 35%;
+    --neon-purple: 270 50% 55%;
+    --neon-pink: 330 80% 50%;
+    --neon-blue: 200 80% 45%;
+
+    --gradient-neon: linear-gradient(135deg, hsl(var(--neon-green)), hsl(var(--neon-purple)));
+    --gradient-glow: radial-gradient(circle, hsl(var(--neon-green) / 0.15) 0%, transparent 70%);
+
+    --shadow-neon-green: 0 4px 12px hsl(var(--neon-green) / 0.2);
+    --shadow-neon-purple: 0 4px 12px hsl(var(--neon-purple) / 0.2);
+  }
 }
 
 @layer base {
