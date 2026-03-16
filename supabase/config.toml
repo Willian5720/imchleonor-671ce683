@@ -1,16 +1,1 @@
-project_id = "ohrlarphhjfrclrogyqm"
-
-[functions.bybit-transfer]
-verify_jwt = false
-
-[functions.football-api]
-verify_jwt = false
-
-[functions.crypto-prices]
-verify_jwt = false
-
-[functions.deriv-integration]
-verify_jwt = false
-
-[functions.search-users]
-verify_jwt = false
+project_id = "btpxdobhdekqkoqpbink"
