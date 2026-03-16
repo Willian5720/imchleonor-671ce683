@@ -45,8 +45,8 @@ export const useExchangeRates = () => {
   // Taxas pré-definidas
   const AOA_TO_IMCH = getRate('AOA', 'IMCH') || 0.001;
   const IMCH_TO_AOA = getRate('IMCH', 'AOA') || 1000;
-  const IMCH_TO_USD = getRate('IMCH', 'USD') || 0.01;
-  const USD_TO_IMCH = getRate('USD', 'IMCH') || 100;
+  const IMCH_TO_USD = getRate('IMCH', 'USD') || 1;
+  const USD_TO_IMCH = getRate('USD', 'IMCH') || 1;
   const IMCH_TO_ETH = getRate('IMCH', 'ETH') || 0.000003;
   const ETH_TO_IMCH = getRate('ETH', 'IMCH') || 333333;
 
