@@ -211,11 +211,47 @@ export default function AdminAudit() {
     }
   }, []);
 
+  // Initial data fetch
   useEffect(() => {
     fetchLogs();
     fetchSecurityEvents();
     fetchUsers();
   }, [fetchLogs, fetchSecurityEvents, fetchUsers]);
+
+  // Realtime security monitoring - auto-detect new intrusions
+  const [realtimeActive, setRealtimeActive] = useState(true);
+  const [lastEventTime, setLastEventTime] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!realtimeActive) return;
+
+    const channel = supabase
+      .channel('security-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'security_events',
+        },
+        (payload) => {
+          const newEvent = payload.new as SecurityEvent;
+          setSecurityEvents((prev) => [newEvent, ...prev]);
+          setLastEventTime(new Date().toISOString());
+        }
+      )
+      .subscribe();
+
+    // Also poll every 30s as a fallback
+    const pollInterval = setInterval(() => {
+      fetchSecurityEvents();
+    }, 30000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(pollInterval);
+    };
+  }, [realtimeActive, fetchSecurityEvents]);
 
   useEffect(() => {
     if (selectedUserId) {
