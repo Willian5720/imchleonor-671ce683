@@ -211,11 +211,47 @@ export default function AdminAudit() {
     }
   }, []);
 
+  // Initial data fetch
   useEffect(() => {
     fetchLogs();
     fetchSecurityEvents();
     fetchUsers();
   }, [fetchLogs, fetchSecurityEvents, fetchUsers]);
+
+  // Realtime security monitoring - auto-detect new intrusions
+  const [realtimeActive, setRealtimeActive] = useState(true);
+  const [lastEventTime, setLastEventTime] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!realtimeActive) return;
+
+    const channel = supabase
+      .channel('security-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'security_events',
+        },
+        (payload) => {
+          const newEvent = payload.new as SecurityEvent;
+          setSecurityEvents((prev) => [newEvent, ...prev]);
+          setLastEventTime(new Date().toISOString());
+        }
+      )
+      .subscribe();
+
+    // Also poll every 30s as a fallback
+    const pollInterval = setInterval(() => {
+      fetchSecurityEvents();
+    }, 30000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(pollInterval);
+    };
+  }, [realtimeActive, fetchSecurityEvents]);
 
   useEffect(() => {
     if (selectedUserId) {
@@ -451,6 +487,46 @@ export default function AdminAudit() {
           {/* ========== SECURITY TAB ========== */}
           <TabsContent value="security">
             <div className="space-y-6">
+              {/* Live Monitoring Status */}
+              <Card className={`border ${realtimeActive ? 'border-green-500/30 bg-green-500/5' : 'border-border/50 bg-card/80'}`}>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`relative p-2 rounded-full ${realtimeActive ? 'bg-green-500/20' : 'bg-muted'}`}>
+                      <Shield className={`h-5 w-5 ${realtimeActive ? 'text-green-500' : 'text-muted-foreground'}`} />
+                      {realtimeActive && (
+                        <span className="absolute top-0 right-0 w-3 h-3 rounded-full bg-green-500 animate-pulse border-2 border-background" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-semibold text-sm">
+                          {realtimeActive ? '🔴 Rastreio em Tempo Real ATIVO' : 'Rastreio Pausado'}
+                        </h4>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {realtimeActive 
+                          ? 'Monitorando invasões automaticamente — qualquer evento suspeito aparecerá instantaneamente' 
+                          : 'Clique para ativar o monitoramento automático'}
+                      </p>
+                      {lastEventTime && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          <Clock className="inline h-3 w-3 mr-1" />
+                          Último evento: {format(new Date(lastEventTime), "dd/MM/yyyy HH:mm:ss", { locale: ptBR })}
+                        </p>
+                      )}
+                    </div>
+                    <Button 
+                      variant={realtimeActive ? "outline" : "default"} 
+                      size="sm" 
+                      onClick={() => setRealtimeActive(!realtimeActive)}
+                      className={realtimeActive ? 'border-green-500/50 text-green-500 hover:bg-green-500/10' : ''}
+                    >
+                      {realtimeActive ? 'Pausar' : 'Ativar'}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* Security Alert Banner */}
               <Card className="bg-gradient-to-br from-red-500/10 to-orange-500/5 border-red-500/30">
                 <CardContent className="p-4">
@@ -478,6 +554,11 @@ export default function AdminAudit() {
                   <CardTitle className="flex items-center gap-2">
                     <AlertTriangle className="h-5 w-5 text-orange-500" />
                     Eventos de Segurança
+                    {realtimeActive && (
+                      <Badge className="bg-green-500/20 text-green-500 border-green-500/30 text-xs ml-2">
+                        ● AO VIVO
+                      </Badge>
+                    )}
                   </CardTitle>
                   <CardDescription>
                     {securityEvents.length} eventos registrados — tentativas de invasão e acessos suspeitos
