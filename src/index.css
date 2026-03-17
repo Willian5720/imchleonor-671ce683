@@ -62,53 +62,53 @@
   }
 
   .light {
-    --background: 0 0% 98%;
-    --foreground: 240 10% 10%;
+    --background: 220 20% 97%;
+    --foreground: 220 15% 15%;
 
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 10%;
+    --card-foreground: 220 15% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 10%;
+    --popover-foreground: 220 15% 15%;
 
-    --primary: 150 80% 35%;
+    --primary: 152 60% 28%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 270 50% 55%;
+    --secondary: 270 40% 45%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 240 5% 92%;
-    --muted-foreground: 240 5% 40%;
+    --muted: 220 14% 92%;
+    --muted-foreground: 220 10% 42%;
 
-    --accent: 270 50% 55%;
+    --accent: 270 40% 45%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84% 50%;
+    --destructive: 0 72% 45%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 240 5% 85%;
-    --input: 240 5% 85%;
-    --ring: 150 80% 35%;
+    --border: 220 13% 86%;
+    --input: 220 13% 86%;
+    --ring: 152 60% 28%;
 
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 240 10% 10%;
-    --sidebar-primary: 150 80% 35%;
+    --sidebar-background: 220 20% 97%;
+    --sidebar-foreground: 220 15% 15%;
+    --sidebar-primary: 152 60% 28%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 270 50% 55%;
+    --sidebar-accent: 270 40% 45%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 240 5% 85%;
-    --sidebar-ring: 150 80% 35%;
+    --sidebar-border: 220 13% 86%;
+    --sidebar-ring: 152 60% 28%;
 
-    --neon-green: 150 80% 35%;
-    --neon-purple: 270 50% 55%;
-    --neon-pink: 330 80% 50%;
-    --neon-blue: 200 80% 45%;
+    --neon-green: 152 60% 28%;
+    --neon-purple: 270 40% 45%;
+    --neon-pink: 330 60% 45%;
+    --neon-blue: 200 65% 40%;
 
     --gradient-neon: linear-gradient(135deg, hsl(var(--neon-green)), hsl(var(--neon-purple)));
-    --gradient-glow: radial-gradient(circle, hsl(var(--neon-green) / 0.15) 0%, transparent 70%);
+    --gradient-glow: radial-gradient(circle, hsl(var(--neon-green) / 0.08) 0%, transparent 70%);
 
-    --shadow-neon-green: 0 4px 12px hsl(var(--neon-green) / 0.2);
-    --shadow-neon-purple: 0 4px 12px hsl(var(--neon-purple) / 0.2);
+    --shadow-neon-green: 0 2px 8px hsl(var(--neon-green) / 0.15);
+    --shadow-neon-purple: 0 2px 8px hsl(var(--neon-purple) / 0.15);
   }
 }
 
