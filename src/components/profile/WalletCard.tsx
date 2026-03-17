@@ -169,26 +169,18 @@ export const WalletCard: React.FC = () => {
           throw new Error('Saldo insuficiente');
         }
 
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({ 
-            coins: imchBalance - imchToWithdraw,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', user.id);
+        const { data, error: withdrawError } = await supabase.rpc('withdraw_imch', {
+          p_user_id: user.id,
+          p_amount: imchToWithdraw,
+          p_payment_method: methodId,
+        });
 
-        if (updateError) throw updateError;
+        if (withdrawError) throw withdrawError;
 
-        await supabase
-          .from('user_transfers')
-          .insert({
-            from_user_id: user.id,
-            to_user_id: user.id,
-            amount: imchToWithdraw,
-            currency: 'IMCH_WITHDRAW',
-            note: `Retirada de ${imchToWithdraw} IMCH para ${aoaToReceive.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} AOA via ${methodId}`,
-            status: 'completed'
-          });
+        const result = data as { success: boolean; error?: string };
+        if (!result.success) {
+          throw new Error(result.error || 'Erro na retirada');
+        }
 
         setStep('success');
         refetch();

@@ -561,6 +561,10 @@ export type Database = {
         }
         Returns: Json
       }
+      withdraw_imch: {
+        Args: { p_amount: number; p_payment_method?: string; p_user_id: string }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "admin" | "user"
