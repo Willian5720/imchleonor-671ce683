@@ -27,9 +27,9 @@ export function AppSidebar() {
 
   const menuItems = [
     { title: 'Casa da Cripto', url: '/', icon: ShoppingBag, adminOnly: false },
-    { title: 'Blockchain', url: '/blockchain', icon: Boxes, adminOnly: false },
     { title: 'Meu Perfil', url: '/profile', icon: User, adminOnly: false },
     ...(isAdmin ? [
+      { title: 'Blockchain', url: '/blockchain', icon: Boxes, adminOnly: true },
       { title: 'IMCHLEONOR', url: '/game', icon: Gamepad2, adminOnly: true },
       { title: 'Auditoria', url: '/admin/audit', icon: Shield, adminOnly: true },
     ] : []),

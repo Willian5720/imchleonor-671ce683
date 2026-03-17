@@ -31,9 +31,9 @@ const App = () => (
             <Route 
               path="/blockchain" 
               element={
-                <ProtectedRoute>
+                <AdminRoute>
                   <Blockchain />
-                </ProtectedRoute>
+                </AdminRoute>
               } 
             />
             <Route 
