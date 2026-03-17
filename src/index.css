@@ -136,6 +136,11 @@
     box-shadow: var(--shadow-neon-purple);
   }
 
+  .light .neon-glow-green,
+  .light .neon-glow-purple {
+    box-shadow: 0 1px 4px hsl(220 15% 15% / 0.08);
+  }
+
   .neon-text-green {
     text-shadow: 0 0 10px hsl(var(--neon-green)), 0 0 20px hsl(var(--neon-green) / 0.5);
   }
