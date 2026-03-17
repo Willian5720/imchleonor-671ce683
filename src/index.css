@@ -140,8 +140,16 @@
     text-shadow: 0 0 10px hsl(var(--neon-green)), 0 0 20px hsl(var(--neon-green) / 0.5);
   }
 
+  .light .neon-text-green {
+    text-shadow: none;
+  }
+
   .neon-text-purple {
     text-shadow: 0 0 10px hsl(var(--neon-purple)), 0 0 20px hsl(var(--neon-purple) / 0.5);
+  }
+
+  .light .neon-text-purple {
+    text-shadow: none;
   }
 
   .glass-card {
