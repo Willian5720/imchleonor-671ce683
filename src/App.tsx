@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { MainLayout } from "./layouts/MainLayout";
 import Game from "./pages/Game";
-import Boutique from "./pages/Boutique";
+import Exchange from "./pages/Exchange";
 import Profile from "./pages/Profile";
 import Blockchain from "./pages/Blockchain";
 import AdminAudit from "./pages/AdminAudit";
