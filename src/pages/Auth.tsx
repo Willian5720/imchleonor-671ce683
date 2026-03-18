@@ -271,7 +271,7 @@ const Auth = () => {
           </h1>
           {!is2FAVerify && !is2FASetup && (
             <p className="text-muted-foreground mt-2">
-              {isSignUp ? 'Crie sua conta para acessar a loja' : 'Acesse sua conta'}
+              {isSignUp ? 'Crie sua conta para acessar a exchange' : 'Acesse sua conta'}
             </p>
           )}
         </div>
@@ -458,7 +458,7 @@ const Auth = () => {
 
       {/* Footer */}
       <p className="mt-8 text-xs text-muted-foreground relative z-10">
-        © 2024 LEONOR Boutique. Todos os direitos reservados.
+        © 2024 IMCHLEONOR. Todos os direitos reservados.
       </p>
     </div>
   );
