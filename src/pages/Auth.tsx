@@ -271,7 +271,7 @@ const Auth = () => {
           </h1>
           {!is2FAVerify && !is2FASetup && (
             <p className="text-muted-foreground mt-2">
-              {isSignUp ? 'Crie sua conta para acessar a loja' : 'Acesse sua conta'}
+              {isSignUp ? 'Crie sua conta para acessar a exchange' : 'Acesse sua conta'}
             </p>
           )}
         </div>
