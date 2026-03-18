@@ -49,9 +49,7 @@ export function AppSidebar() {
     <Sidebar className="border-r border-border bg-card/50 backdrop-blur-xl">
       <SidebarHeader className="p-4 border-b border-border">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-            <Coins className="w-4 h-4 text-background" />
-          </div>
+          <img src="/pwa-192x192.png" alt="IMCHLEONOR" className="w-8 h-8 rounded-lg" />
           <div>
             <h2 className="font-display text-sm font-bold text-primary neon-text-green">
               CASA DA CRIPTO

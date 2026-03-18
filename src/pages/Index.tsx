@@ -171,6 +171,7 @@ const Index = () => {
       <div className="relative z-10 min-h-screen flex flex-col items-center justify-center p-6 gap-6">
         {/* Header */}
         <div className="text-center mb-2">
+          <img src="/pwa-192x192.png" alt="IMCHLEONOR" className="w-20 h-20 rounded-2xl mx-auto mb-3" />
           <h1 className="font-display font-black text-4xl md:text-5xl text-primary neon-text-green mb-2">
             IMCHLEONOR
           </h1>

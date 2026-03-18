@@ -13,12 +13,10 @@ export default function Boutique() {
       <div className="p-6">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
-          <div className="flex items-center gap-3 mb-8">
-            <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 border border-primary/30">
-              <ShoppingBag className="w-8 h-8 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-display font-bold text-primary neon-text-green">
+          <div className="flex flex-col items-center justify-center gap-3 mb-8">
+            <img src="/pwa-192x192.png" alt="IMCHLEONOR" className="w-16 h-16 rounded-2xl" />
+            <div className="text-center">
+              <h1 className="text-2xl md:text-3xl font-display font-bold text-primary/80">
                 CASA DA CRIPTO IMCH
               </h1>
               <p className="text-muted-foreground">Exchange de Criptomoedas</p>
