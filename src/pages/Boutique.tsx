@@ -16,7 +16,7 @@ export default function Boutique() {
           <div className="flex flex-col items-center justify-center gap-3 mb-8">
             <img src="/pwa-192x192.png" alt="IMCHLEONOR" className="w-16 h-16 rounded-2xl" />
             <div className="text-center">
-              <h1 className="text-2xl md:text-3xl font-display font-bold text-emerald-400">
+              <h1 className="text-2xl md:text-3xl font-display font-bold text-primary/80">
                 CASA DA CRIPTO IMCH
               </h1>
               <p className="text-muted-foreground">Exchange de Criptomoedas</p>
