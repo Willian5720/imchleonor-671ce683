@@ -458,7 +458,7 @@ const Auth = () => {
 
       {/* Footer */}
       <p className="mt-8 text-xs text-muted-foreground relative z-10">
-        © 2024 LEONOR Boutique. Todos os direitos reservados.
+        © 2024 IMCHLEONOR. Todos os direitos reservados.
       </p>
     </div>
   );

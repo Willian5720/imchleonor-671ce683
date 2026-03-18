@@ -4,7 +4,7 @@ import { CryptoList } from '@/components/crypto/CryptoList';
 import { CryptoTicker } from '@/components/crypto/CryptoTicker';
 import { CryptoTrading } from '@/components/crypto/CryptoTrading';
 
-export default function Boutique() {
+export default function Exchange() {
   return (
     <div className="min-h-screen bg-background">
       {/* Crypto Ticker */}

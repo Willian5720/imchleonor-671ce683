@@ -26,7 +26,7 @@ export function AppSidebar() {
   const currentPath = location.pathname;
 
   const menuItems = [
-    { title: 'Casa da Cripto', url: '/', icon: ShoppingBag, adminOnly: false },
+    { title: 'CASA DA CRIPTO IMCH', url: '/', icon: ShoppingBag, adminOnly: false },
     { title: 'Meu Perfil', url: '/profile', icon: User, adminOnly: false },
     ...(isAdmin ? [
       { title: 'Blockchain', url: '/blockchain', icon: Boxes, adminOnly: true },

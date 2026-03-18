@@ -25,8 +25,7 @@ const App = () => (
         <Routes>
           <Route path="/auth" element={<Auth />} />
           <Route element={<MainLayout />}>
-            <Route path="/" element={<Boutique />} />
-            <Route path="/boutique" element={<Boutique />} />
+            <Route path="/" element={<Exchange />} />
             <Route path="/profile" element={<Profile />} />
             <Route 
               path="/blockchain" 
