@@ -290,7 +290,7 @@ export const WalletCard: React.FC<{ autoOpenDeposit?: boolean }> = ({ autoOpenDe
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <DialogTitle className="text-xl">
-                  {modalType === 'add' ? 'Adicionar Saldo' : 'Retirar Saldo'}
+                  {modalType === 'add' ? 'Depósito' : 'Retirar Saldo'}
                 </DialogTitle>
               </DialogHeader>
 
