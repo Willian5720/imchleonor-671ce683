@@ -116,6 +116,9 @@ export default function Exchange() {
           </CardContent>
         </Card>
 
+        {/* KYC Verification Banner */}
+        <KycVerification />
+
         {/* For You Section */}
         <div>
           <div className="flex items-center justify-between mb-3">
