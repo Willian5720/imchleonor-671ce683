@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { User, Send, Clock, Settings, LogOut, Moon, Sun, Bell, HelpCircle, Activity, Wallet, Coins } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -15,12 +17,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAuditLog } from '@/hooks/useAuditLog';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useTheme } from '@/hooks/useTheme';
-
-export default function Profile() {
-  const { signOut, user } = useAuth();
-  const { logAction } = useAuditLog();
-  const { isAdmin } = useUserRole();
-  const { isDark, toggleTheme } = useTheme();
+import { useState } from 'react';
 
   const handleSignOut = async () => {
     await logAction('logout', 'auth');
