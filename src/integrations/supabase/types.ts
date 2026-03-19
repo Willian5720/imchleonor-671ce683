@@ -313,6 +313,54 @@ export type Database = {
         }
         Relationships: []
       }
+      kyc_verifications: {
+        Row: {
+          created_at: string
+          date_of_birth: string | null
+          document_image_url: string | null
+          document_number: string | null
+          document_type: string | null
+          extracted_data: Json | null
+          full_name: string | null
+          id: string
+          rejection_reason: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          verified_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          date_of_birth?: string | null
+          document_image_url?: string | null
+          document_number?: string | null
+          document_type?: string | null
+          extracted_data?: Json | null
+          full_name?: string | null
+          id?: string
+          rejection_reason?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          verified_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          date_of_birth?: string | null
+          document_image_url?: string | null
+          document_number?: string | null
+          document_type?: string | null
+          extracted_data?: Json | null
+          full_name?: string | null
+          id?: string
+          rejection_reason?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
