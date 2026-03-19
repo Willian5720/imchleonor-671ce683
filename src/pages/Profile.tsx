@@ -133,7 +133,7 @@ import { useState } from 'react';
           {/* Wallet Tab */}
           <TabsContent value="wallet" className="mt-0">
             <div className="max-w-lg mx-auto">
-              <WalletCard />
+              <WalletCard autoOpenDeposit={autoDeposit} />
             </div>
           </TabsContent>
 
