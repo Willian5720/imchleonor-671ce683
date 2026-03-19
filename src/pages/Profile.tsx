@@ -61,7 +61,7 @@ import { useState } from 'react';
         <p className="text-muted-foreground mb-6">Gerencie suas configurações, saldos e transferências</p>
 
         {/* Main Tabs */}
-        <Tabs defaultValue="profile" className="w-full">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="grid w-full max-w-3xl grid-cols-6 mb-6">
             <TabsTrigger value="profile" className="flex items-center gap-2">
               <User className="w-4 h-4" />
