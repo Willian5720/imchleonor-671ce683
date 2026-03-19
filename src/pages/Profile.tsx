@@ -19,6 +19,11 @@ import { useUserRole } from '@/hooks/useUserRole';
 import { useTheme } from '@/hooks/useTheme';
 import { useState } from 'react';
 
+export default function Profile() {
+  const { signOut, user } = useAuth();
+  const { logAction } = useAuditLog();
+  const { isAdmin } = useUserRole();
+  const { isDark, toggleTheme } = useTheme();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialTab = searchParams.get('tab') || 'profile';
   const [activeTab, setActiveTab] = useState(initialTab);
