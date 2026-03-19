@@ -1,4 +1,4 @@
-import { Gamepad2, LogOut, ShoppingBag, User, Coins, Shield, Boxes } from 'lucide-react';
+import { User, LogOut, Coins, Clock, Settings, Shield, Wallet, FileText, Lock, HelpCircle, Boxes, Gamepad2 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Separator } from '@/components/ui/separator';
 
 export function AppSidebar() {
   const location = useLocation();
@@ -25,117 +26,142 @@ export function AppSidebar() {
   const { profile } = useUserProfile();
   const currentPath = location.pathname;
 
-  const menuItems = [
-    { title: 'CASA DA CRIPTO IMCH', url: '/', icon: ShoppingBag, adminOnly: false },
-    { title: 'Meu Perfil', url: '/profile', icon: User, adminOnly: false },
-    ...(isAdmin ? [
-      { title: 'Blockchain', url: '/blockchain', icon: Boxes, adminOnly: true },
-      { title: 'IMCHLEONOR', url: '/game', icon: Gamepad2, adminOnly: true },
-      { title: 'Auditoria', url: '/admin/audit', icon: Shield, adminOnly: true },
-    ] : []),
+  const accountItems = [
+    { title: 'Visão Geral', url: '/', icon: Coins },
+    { title: 'Meu Perfil', url: '/profile', icon: User },
+    { title: 'Carteira', url: '/profile?tab=wallet', icon: Wallet },
+    { title: 'Histórico', url: '/profile?tab=history', icon: Clock },
+  ];
+
+  const settingsItems = [
+    { title: 'Configurações', url: '/profile?tab=settings', icon: Settings },
+    { title: 'Segurança', url: '/profile?tab=settings', icon: Lock },
+  ];
+
+  const adminItems = isAdmin ? [
+    { title: 'Blockchain', url: '/blockchain', icon: Boxes },
+    { title: 'IMCHLEONOR', url: '/game', icon: Gamepad2 },
+    { title: 'Auditoria', url: '/admin/audit', icon: Shield },
+  ] : [];
+
+  const infoItems = [
+    { title: 'Central de Ajuda', url: '#', icon: HelpCircle },
+    { title: 'Termos de Uso', url: '#', icon: FileText },
+    { title: 'Privacidade', url: '#', icon: Lock },
   ];
 
   const getInitials = () => {
     if (profile?.display_name) {
       return profile.display_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
     }
-    if (user?.email) {
-      return user.email.slice(0, 2).toUpperCase();
-    }
+    if (user?.email) return user.email.slice(0, 2).toUpperCase();
     return 'U';
   };
+
+  const renderMenuItems = (items: typeof accountItems) => (
+    <SidebarMenu>
+      {items.map((item) => {
+        const isActive = currentPath === item.url || (item.url !== '/' && currentPath.startsWith(item.url.split('?')[0]));
+        return (
+          <SidebarMenuItem key={item.title}>
+            <SidebarMenuButton asChild isActive={isActive} tooltip={item.title}>
+              <NavLink
+                to={item.url}
+                className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
+                  isActive
+                    ? 'bg-primary/20 text-primary border border-primary/30'
+                    : 'hover:bg-muted/50 text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <item.icon className={`w-4 h-4 ${isActive ? 'text-primary' : ''}`} />
+                <span className="text-sm">{item.title}</span>
+              </NavLink>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        );
+      })}
+    </SidebarMenu>
+  );
 
   return (
     <Sidebar className="border-r border-border bg-card/50 backdrop-blur-xl">
       <SidebarHeader className="p-4 border-b border-border">
-        <div className="flex items-center gap-2">
-          <img src="/pwa-192x192.png" alt="IMCHLEONOR" className="w-8 h-8 rounded-lg" />
-          <div>
-            <h2 className="font-display text-sm font-bold text-primary neon-text-green">
-              CASA DA CRIPTO
-            </h2>
-            <p className="text-[10px] text-muted-foreground">IMCH</p>
+        {/* User Profile in Sidebar Header */}
+        <NavLink to="/profile" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+          <Avatar className="w-10 h-10 border border-primary/30">
+            <AvatarImage src={profile?.avatar_url || undefined} />
+            <AvatarFallback className="bg-primary/10 text-primary text-sm">
+              {getInitials()}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-foreground truncate">
+              {profile?.display_name || user?.email?.split('@')[0]}
+            </p>
+            <div className="flex items-center gap-1">
+              <Coins className="w-3 h-3 text-primary" />
+              <span className="text-xs text-primary font-medium">
+                {profile?.coins?.toLocaleString() || 0} IMCH
+              </span>
+            </div>
           </div>
-        </div>
+        </NavLink>
       </SidebarHeader>
 
       <SidebarContent>
+        {/* Account */}
         <SidebarGroup>
           <SidebarGroupLabel className="text-muted-foreground text-xs uppercase tracking-wider">
-            Menu Principal
+            Conta
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {menuItems.map((item) => {
-                const isActive = currentPath === item.url;
-                return (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive}
-                      tooltip={item.title}
-                    >
-                      <NavLink
-                        to={item.url}
-                        className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
-                          isActive
-                            ? 'bg-primary/20 text-primary border border-primary/30'
-                            : 'hover:bg-muted/50 text-muted-foreground hover:text-foreground'
-                        }`}
-                      >
-                        <item.icon className={`w-5 h-5 ${isActive ? 'text-primary' : ''}`} />
-                        <span className="font-medium">{item.title}</span>
-                        {item.adminOnly && (
-                          <span className="ml-auto text-[10px] bg-destructive/20 text-destructive px-1.5 py-0.5 rounded">
-                            Admin
-                          </span>
-                        )}
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
+            {renderMenuItems(accountItems)}
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Settings */}
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-muted-foreground text-xs uppercase tracking-wider">
+            Configurações
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            {renderMenuItems(settingsItems)}
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Admin */}
+        {isAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-muted-foreground text-xs uppercase tracking-wider">
+              Administração
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              {renderMenuItems(adminItems)}
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {/* Info */}
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-muted-foreground text-xs uppercase tracking-wider">
+            Informações
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            {renderMenuItems(infoItems)}
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
 
       <SidebarFooter className="p-4 border-t border-border">
-        <div className="flex flex-col gap-3">
-          {/* User Profile Summary */}
-          <NavLink 
-            to="/profile" 
-            className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors"
-          >
-            <Avatar className="w-10 h-10 border border-primary/30">
-              <AvatarImage src={profile?.avatar_url || undefined} />
-              <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                {getInitials()}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground truncate">
-                {profile?.display_name || user?.email?.split('@')[0]}
-              </p>
-              <div className="flex items-center gap-1">
-                <Coins className="w-3 h-3 text-primary" />
-                <span className="text-xs text-primary font-medium">
-                  {profile?.coins?.toLocaleString() || 0}
-                </span>
-              </div>
-            </div>
-          </NavLink>
-          
-          <Button
-            onClick={signOut}
-            variant="outline"
-            size="sm"
-            className="w-full border-destructive/50 text-destructive hover:bg-destructive/10"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Sair
-          </Button>
-        </div>
+        <Button
+          onClick={signOut}
+          variant="outline"
+          size="sm"
+          className="w-full border-destructive/50 text-destructive hover:bg-destructive/10"
+        >
+          <LogOut className="w-4 h-4 mr-2" />
+          Sair
+        </Button>
       </SidebarFooter>
     </Sidebar>
   );
