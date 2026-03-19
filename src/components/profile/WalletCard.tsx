@@ -57,13 +57,14 @@ const paymentMethods: PaymentMethod[] = [
   },
 ];
 
-export const WalletCard: React.FC = () => {
+export const WalletCard: React.FC<{ autoOpenDeposit?: boolean }> = ({ autoOpenDeposit }) => {
   const { profile, loading: profileLoading, refetch } = useUserProfile();
   const { AOA_TO_IMCH, IMCH_TO_AOA, loading: ratesLoading } = useExchangeRates();
   const { user } = useAuth();
   
   const [step, setStep] = useState<Step>('card');
   const [modalOpen, setModalOpen] = useState(false);
+  const [autoOpened, setAutoOpened] = useState(false);
   const [modalType, setModalType] = useState<'add' | 'withdraw'>('add');
   const [inputAmount, setInputAmount] = useState('');
   const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
