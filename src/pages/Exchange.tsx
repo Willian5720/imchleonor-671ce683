@@ -106,7 +106,7 @@ export default function Exchange() {
               <Button 
                 size="sm" 
                 className="bg-primary text-primary-foreground hover:bg-primary/90"
-                onClick={() => navigate('/profile')}
+                onClick={() => navigate('/profile?tab=wallet&deposit=true')}
               >
                 <Plus className="w-4 h-4 mr-1" /> Depósito
               </Button>
