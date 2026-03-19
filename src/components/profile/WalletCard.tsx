@@ -195,6 +195,14 @@ export const WalletCard: React.FC<{ autoOpenDeposit?: boolean }> = ({ autoOpenDe
     }
   };
 
+  // Auto-open deposit modal when navigated from main page
+  React.useEffect(() => {
+    if (autoOpenDeposit && !loading && !autoOpened) {
+      setAutoOpened(true);
+      openAddModal();
+    }
+  }, [autoOpenDeposit, loading, autoOpened]);
+
   if (loading) {
     return (
       <div className="space-y-4">
