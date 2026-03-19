@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { KycBadge } from '@/components/profile/KycBadge';
+import { KycVerification } from '@/components/profile/KycVerification';
 import { Eye, EyeOff, Plus, ArrowDownUp, TrendingUp, TrendingDown, Star, ChevronRight, Gift, Megaphone, Wallet } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
