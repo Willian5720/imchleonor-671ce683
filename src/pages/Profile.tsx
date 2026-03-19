@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { User, Send, Clock, Settings, LogOut, Moon, Sun, Bell, HelpCircle, Activity, Wallet, Coins } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -15,12 +17,29 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAuditLog } from '@/hooks/useAuditLog';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useTheme } from '@/hooks/useTheme';
+import { useState } from 'react';
 
 export default function Profile() {
   const { signOut, user } = useAuth();
   const { logAction } = useAuditLog();
   const { isAdmin } = useUserRole();
   const { isDark, toggleTheme } = useTheme();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') || 'profile';
+  const [activeTab, setActiveTab] = useState(initialTab);
+  const autoDeposit = searchParams.get('deposit') === 'true';
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    setSearchParams({});
+  };
 
   const handleSignOut = async () => {
     await logAction('logout', 'auth');
@@ -47,7 +66,7 @@ export default function Profile() {
         <p className="text-muted-foreground mb-6">Gerencie suas configurações, saldos e transferências</p>
 
         {/* Main Tabs */}
-        <Tabs defaultValue="profile" className="w-full">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="grid w-full max-w-3xl grid-cols-6 mb-6">
             <TabsTrigger value="profile" className="flex items-center gap-2">
               <User className="w-4 h-4" />
@@ -119,7 +138,7 @@ export default function Profile() {
           {/* Wallet Tab */}
           <TabsContent value="wallet" className="mt-0">
             <div className="max-w-lg mx-auto">
-              <WalletCard />
+              <WalletCard autoOpenDeposit={autoDeposit} />
             </div>
           </TabsContent>
 

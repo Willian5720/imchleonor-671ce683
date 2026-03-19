@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { KycBadge } from '@/components/profile/KycBadge';
+import { KycVerification } from '@/components/profile/KycVerification';
 import { Eye, EyeOff, Plus, ArrowDownUp, TrendingUp, TrendingDown, Star, ChevronRight, Gift, Megaphone, Wallet } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -65,9 +67,7 @@ export default function Exchange() {
                     Admin
                   </Badge>
                 )}
-                <Badge variant="outline" className="text-[10px] py-0 px-1.5 border-green-500/50 text-green-500">
-                  ● Verificado
-                </Badge>
+                <KycBadge />
               </div>
             </div>
           </div>
@@ -108,13 +108,16 @@ export default function Exchange() {
               <Button 
                 size="sm" 
                 className="bg-primary text-primary-foreground hover:bg-primary/90"
-                onClick={() => navigate('/profile')}
+                onClick={() => navigate('/profile?tab=wallet&deposit=true')}
               >
                 <Plus className="w-4 h-4 mr-1" /> Depósito
               </Button>
             </div>
           </CardContent>
         </Card>
+
+        {/* KYC Verification Banner */}
+        <KycVerification />
 
         {/* For You Section */}
         <div>

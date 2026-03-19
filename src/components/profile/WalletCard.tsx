@@ -57,13 +57,14 @@ const paymentMethods: PaymentMethod[] = [
   },
 ];
 
-export const WalletCard: React.FC = () => {
+export const WalletCard: React.FC<{ autoOpenDeposit?: boolean }> = ({ autoOpenDeposit }) => {
   const { profile, loading: profileLoading, refetch } = useUserProfile();
   const { AOA_TO_IMCH, IMCH_TO_AOA, loading: ratesLoading } = useExchangeRates();
   const { user } = useAuth();
   
   const [step, setStep] = useState<Step>('card');
   const [modalOpen, setModalOpen] = useState(false);
+  const [autoOpened, setAutoOpened] = useState(false);
   const [modalType, setModalType] = useState<'add' | 'withdraw'>('add');
   const [inputAmount, setInputAmount] = useState('');
   const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
@@ -194,6 +195,14 @@ export const WalletCard: React.FC = () => {
     }
   };
 
+  // Auto-open deposit modal when navigated from main page
+  React.useEffect(() => {
+    if (autoOpenDeposit && !loading && !autoOpened) {
+      setAutoOpened(true);
+      openAddModal();
+    }
+  }, [autoOpenDeposit, loading, autoOpened]);
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -258,7 +267,7 @@ export const WalletCard: React.FC = () => {
             className="flex-1 h-12 gap-2 bg-gradient-to-r from-primary/90 to-primary hover:from-primary hover:to-primary/90 text-primary-foreground font-medium rounded-xl"
           >
             <Plus className="h-5 w-5" />
-            Adicionar+
+            Depósito
           </Button>
           <Button
             onClick={openWithdrawModal}
@@ -281,7 +290,7 @@ export const WalletCard: React.FC = () => {
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <DialogTitle className="text-xl">
-                  {modalType === 'add' ? 'Adicionar Saldo' : 'Retirar Saldo'}
+                  {modalType === 'add' ? 'Depósito' : 'Retirar Saldo'}
                 </DialogTitle>
               </DialogHeader>
 
