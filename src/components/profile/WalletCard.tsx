@@ -267,7 +267,7 @@ export const WalletCard: React.FC<{ autoOpenDeposit?: boolean }> = ({ autoOpenDe
             className="flex-1 h-12 gap-2 bg-gradient-to-r from-primary/90 to-primary hover:from-primary hover:to-primary/90 text-primary-foreground font-medium rounded-xl"
           >
             <Plus className="h-5 w-5" />
-            Adicionar+
+            Depósito
           </Button>
           <Button
             onClick={openWithdrawModal}
