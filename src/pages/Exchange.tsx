@@ -65,9 +65,7 @@ export default function Exchange() {
                     Admin
                   </Badge>
                 )}
-                <Badge variant="outline" className="text-[10px] py-0 px-1.5 border-green-500/50 text-green-500">
-                  ● Verificado
-                </Badge>
+                <KycBadge />
               </div>
             </div>
           </div>
