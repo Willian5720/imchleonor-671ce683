@@ -7,6 +7,10 @@ import { MainLayout } from "./layouts/MainLayout";
 import Game from "./pages/Game";
 import Exchange from "./pages/Exchange";
 import Profile from "./pages/Profile";
+import WalletPage from "./pages/WalletPage";
+import SendPage from "./pages/SendPage";
+import HistoryPage from "./pages/HistoryPage";
+import SettingsPage from "./pages/SettingsPage";
 import Blockchain from "./pages/Blockchain";
 import AdminAudit from "./pages/AdminAudit";
 import Auth from "./pages/Auth";
@@ -27,29 +31,33 @@ const App = () => (
           <Route element={<MainLayout />}>
             <Route path="/" element={<Exchange />} />
             <Route path="/profile" element={<Profile />} />
-            <Route 
-              path="/blockchain" 
+            <Route path="/wallet" element={<WalletPage />} />
+            <Route path="/send" element={<SendPage />} />
+            <Route path="/history" element={<HistoryPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route
+              path="/blockchain"
               element={
                 <AdminRoute>
                   <Blockchain />
                 </AdminRoute>
-              } 
+              }
             />
-            <Route 
-              path="/game" 
+            <Route
+              path="/game"
               element={
                 <AdminRoute>
                   <Game />
                 </AdminRoute>
-              } 
+              }
             />
-            <Route 
-              path="/admin/audit" 
+            <Route
+              path="/admin/audit"
               element={
                 <AdminRoute>
                   <AdminAudit />
                 </AdminRoute>
-              } 
+              }
             />
           </Route>
           <Route path="*" element={<NotFound />} />
