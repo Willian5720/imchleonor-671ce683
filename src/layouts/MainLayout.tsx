@@ -7,6 +7,7 @@ import { Loader2 } from 'lucide-react';
 
 export const MainLayout = () => {
   const { isAuthenticated, loading: authLoading } = useAuth();
+  useTheme(); // Initialize theme on every render to keep document class in sync
 
   if (authLoading) {
     return (
