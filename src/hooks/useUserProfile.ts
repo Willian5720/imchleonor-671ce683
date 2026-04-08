@@ -149,18 +149,18 @@ export function useUserTransfers() {
     if (!user?.id) return { success: false, error: 'Not authenticated' };
 
     try {
-      // Use secure edge function to find recipient by email
+      // Use secure edge function to find recipient by exact email match
       const { data: searchResult, error: searchError } = await supabase.functions.invoke('search-users', {
-        body: { email: toEmail },
+        body: { email: toEmail.toLowerCase().trim(), exact_match: true },
       });
 
       if (searchError) throw searchError;
       
-      // Find exact match from search results
-      const recipient = searchResult?.users?.find(
-        (u: { email: string | null }) => u.email?.toLowerCase() === toEmail.toLowerCase()
-      );
-      
+      if (!searchResult?.found) {
+        return { success: false, error: searchResult?.error || 'Este email não está cadastrado na plataforma. A transferência só pode ser feita para usuários registrados.' };
+      }
+
+      const recipient = searchResult.user;
       if (!recipient) return { success: false, error: 'Destinatário não encontrado' };
       if (recipient.id === user.id) return { success: false, error: 'Não é possível transferir para você mesmo' };
 
