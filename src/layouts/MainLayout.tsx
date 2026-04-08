@@ -1,11 +1,13 @@
 import { Outlet, Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useTheme } from '@/hooks/useTheme';
 import { AppSidebar } from '@/components/AppSidebar';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Loader2 } from 'lucide-react';
 
 export const MainLayout = () => {
   const { isAuthenticated, loading: authLoading } = useAuth();
+  useTheme(); // Initialize theme on every render to keep document class in sync
 
   if (authLoading) {
     return (
