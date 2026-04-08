@@ -1,4 +1,4 @@
-import { User, LogOut, Coins, Clock, Settings, Shield, Wallet, FileText, Lock, HelpCircle, Boxes, Gamepad2 } from 'lucide-react';
+import { User, LogOut, Coins, Clock, Settings, Shield, Wallet, FileText, Lock, HelpCircle, Boxes, Gamepad2, Send, Home } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -17,7 +17,6 @@ import {
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Separator } from '@/components/ui/separator';
 
 export function AppSidebar() {
   const location = useLocation();
@@ -27,15 +26,15 @@ export function AppSidebar() {
   const currentPath = location.pathname;
 
   const accountItems = [
-    { title: 'Visão Geral', url: '/', icon: Coins },
+    { title: 'Início', url: '/', icon: Home },
     { title: 'Meu Perfil', url: '/profile', icon: User },
-    { title: 'Carteira', url: '/profile?tab=wallet', icon: Wallet },
-    { title: 'Histórico', url: '/profile?tab=history', icon: Clock },
+    { title: 'Carteira', url: '/wallet', icon: Wallet },
+    { title: 'Enviar', url: '/send', icon: Send },
+    { title: 'Histórico', url: '/history', icon: Clock },
   ];
 
   const settingsItems = [
-    { title: 'Configurações', url: '/profile?tab=settings', icon: Settings },
-    { title: 'Segurança', url: '/profile?tab=settings', icon: Lock },
+    { title: 'Configurações', url: '/settings', icon: Settings },
   ];
 
   const adminItems = isAdmin ? [
@@ -58,22 +57,27 @@ export function AppSidebar() {
     return 'U';
   };
 
+  const isActive = (url: string) => {
+    if (url === '/') return currentPath === '/';
+    return currentPath === url;
+  };
+
   const renderMenuItems = (items: typeof accountItems) => (
     <SidebarMenu>
       {items.map((item) => {
-        const isActive = currentPath === item.url || (item.url !== '/' && currentPath.startsWith(item.url.split('?')[0]));
+        const active = isActive(item.url);
         return (
           <SidebarMenuItem key={item.title}>
-            <SidebarMenuButton asChild isActive={isActive} tooltip={item.title}>
+            <SidebarMenuButton asChild isActive={active} tooltip={item.title}>
               <NavLink
                 to={item.url}
                 className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
-                  isActive
+                  active
                     ? 'bg-primary/20 text-primary border border-primary/30'
                     : 'hover:bg-muted/50 text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <item.icon className={`w-4 h-4 ${isActive ? 'text-primary' : ''}`} />
+                <item.icon className={`w-4 h-4 ${active ? 'text-primary' : ''}`} />
                 <span className="text-sm">{item.title}</span>
               </NavLink>
             </SidebarMenuButton>
@@ -86,7 +90,6 @@ export function AppSidebar() {
   return (
     <Sidebar className="border-r border-border bg-card/50 backdrop-blur-xl">
       <SidebarHeader className="p-4 border-b border-border">
-        {/* User Profile in Sidebar Header */}
         <NavLink to="/profile" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
           <Avatar className="w-10 h-10 border border-primary/30">
             <AvatarImage src={profile?.avatar_url || undefined} />
@@ -109,7 +112,6 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        {/* Account */}
         <SidebarGroup>
           <SidebarGroupLabel className="text-muted-foreground text-xs uppercase tracking-wider">
             Conta
@@ -119,7 +121,6 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Settings */}
         <SidebarGroup>
           <SidebarGroupLabel className="text-muted-foreground text-xs uppercase tracking-wider">
             Configurações
@@ -129,7 +130,6 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Admin */}
         {isAdmin && (
           <SidebarGroup>
             <SidebarGroupLabel className="text-muted-foreground text-xs uppercase tracking-wider">
@@ -141,7 +141,6 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
 
-        {/* Info */}
         <SidebarGroup>
           <SidebarGroupLabel className="text-muted-foreground text-xs uppercase tracking-wider">
             Informações
