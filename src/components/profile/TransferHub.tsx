@@ -472,7 +472,7 @@ export function TransferHub() {
               <Textarea value={p2pNote} onChange={(e) => setP2pNote(e.target.value)} placeholder="Adicione uma mensagem..." className="bg-background/50 min-h-[60px]" />
             </div>
 
-            <Button type="submit" className="w-full" disabled={p2pSending}>
+            <Button type="submit" className="w-full" disabled={p2pSending || !selectedRecipient}>
               {p2pSending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
               Enviar Transferência
             </Button>
