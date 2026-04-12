@@ -397,9 +397,63 @@ export function TransferHub() {
               </Alert>
             )}
 
-            <div className="space-y-2">
+            <div className="space-y-2" ref={searchContainerRef}>
               <Label>Email do Destinatário</Label>
-              <Input type="email" value={recipientEmail} onChange={(e) => setRecipientEmail(e.target.value)} placeholder="usuario@exemplo.com" className="bg-background/50" />
+              {selectedRecipient ? (
+                <div className="flex items-center gap-3 p-3 rounded-lg border border-primary/30 bg-primary/5">
+                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold text-primary">
+                    {(selectedRecipient.display_name || '?')[0].toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate">{selectedRecipient.display_name || 'Usuário'}</p>
+                    <p className="text-xs text-muted-foreground">{selectedRecipient.email_hint}</p>
+                  </div>
+                  <Button type="button" variant="ghost" size="sm" onClick={clearRecipient} className="text-xs text-destructive hover:text-destructive">
+                    Alterar
+                  </Button>
+                </div>
+              ) : (
+                <div className="relative">
+                  <Input
+                    type="text"
+                    value={recipientEmail}
+                    onChange={(e) => {
+                      setRecipientEmail(e.target.value);
+                      setSelectedRecipient(null);
+                    }}
+                    placeholder="Digite o email do usuário..."
+                    className="bg-background/50"
+                  />
+                  {searchingUsers && recipientEmail.length >= 3 && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
+                  {showResults && searchResults.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg overflow-hidden">
+                      {searchResults.map((u) => (
+                        <button
+                          key={u.id}
+                          type="button"
+                          onClick={() => selectRecipient(u)}
+                          className="w-full flex items-center gap-3 p-3 hover:bg-accent/50 transition-colors text-left"
+                        >
+                          <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold text-primary shrink-0">
+                            {(u.display_name || '?')[0].toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-medium text-sm truncate">{u.display_name || 'Usuário'}</p>
+                            <p className="text-xs text-muted-foreground">{u.email_hint}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {!searchingUsers && recipientEmail.length >= 3 && searchResults.length === 0 && !showResults && !selectedRecipient && (
+                    <p className="text-xs text-destructive mt-1">Nenhum usuário encontrado com esse email</p>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
