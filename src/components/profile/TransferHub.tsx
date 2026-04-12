@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +15,7 @@ import {
   Wallet,
   Info,
 } from 'lucide-react';
-import { useUserProfile, useUserTransfers } from '@/hooks/useUserProfile';
+import { useUserProfile, useUserTransfers, useSearchUsers, SearchUserResult } from '@/hooks/useUserProfile';
 import { useDerivIntegration } from '@/hooks/useDerivIntegration';
 import { useExchangeRates } from '@/hooks/useExchangeRates';
 import { useToast } from '@/hooks/use-toast';
@@ -54,6 +54,7 @@ export function TransferHub() {
   const { user } = useAuth();
   const { profile, refetch: refetchProfile } = useUserProfile();
   const { sendTransfer } = useUserTransfers();
+  const { searchByEmail, searching: searchingUsers } = useSearchUsers();
   const { deposit: depositToDeriv, loading: derivLoading } = useDerivIntegration();
   const { IMCH_TO_USD } = useExchangeRates();
 
@@ -65,7 +66,57 @@ export function TransferHub() {
   const [p2pNote, setP2pNote] = useState('');
   const [p2pSending, setP2pSending] = useState(false);
   const [p2pError, setP2pError] = useState<string | null>(null);
+  const [searchResults, setSearchResults] = useState<SearchUserResult[]>([]);
+  const [selectedRecipient, setSelectedRecipient] = useState<SearchUserResult | null>(null);
+  const [showResults, setShowResults] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
 
+  // Real-time search with debounce
+  useEffect(() => {
+    if (selectedRecipient) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    
+    if (recipientEmail.length < 3) {
+      setSearchResults([]);
+      setShowResults(false);
+      return;
+    }
+
+    debounceRef.current = setTimeout(async () => {
+      const results = await searchByEmail(recipientEmail);
+      setSearchResults(results);
+      setShowResults(results.length > 0);
+    }, 400);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [recipientEmail, selectedRecipient]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setShowResults(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const selectRecipient = (u: SearchUserResult) => {
+    setSelectedRecipient(u);
+    setRecipientEmail(u.email_hint || u.display_name || '');
+    setShowResults(false);
+    setSearchResults([]);
+  };
+
+  const clearRecipient = () => {
+    setSelectedRecipient(null);
+    setRecipientEmail('');
+    setSearchResults([]);
+  };
   // Deriv States
   const [derivAmount, setDerivAmount] = useState('');
 
