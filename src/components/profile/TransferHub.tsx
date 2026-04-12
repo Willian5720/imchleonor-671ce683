@@ -142,8 +142,12 @@ export function TransferHub() {
     setP2pError(null);
     const amountNum = parseFloat(p2pAmount);
 
-    if (!recipientEmail || !amountNum || amountNum <= 0) {
-      setP2pError('Preencha todos os campos corretamente.');
+    if (!selectedRecipient) {
+      setP2pError('Selecione um destinatário da lista de resultados.');
+      return;
+    }
+    if (!amountNum || amountNum <= 0) {
+      setP2pError('Preencha o valor corretamente.');
       return;
     }
     if (amountNum > balance) {
@@ -152,18 +156,35 @@ export function TransferHub() {
     }
 
     setP2pSending(true);
-    const result = await sendTransfer(recipientEmail, amountNum, p2pNote || undefined);
-    setP2pSending(false);
+    try {
+      // Transfer using the selected recipient's ID directly
+      const { data, error: transferError } = await supabase.rpc('transfer_between_users', {
+        p_from_user_id: user!.id,
+        p_to_user_id: selectedRecipient.id,
+        p_amount: amountNum,
+        p_currency: 'COINS',
+        p_note: p2pNote || null,
+      });
 
-    if (result.success) {
-      toast({ title: 'Transferência realizada!', description: `${amountNum} COINS enviados` });
-      setRecipientEmail('');
-      setP2pAmount('');
-      setP2pNote('');
-      setSelectedType(null);
-      refetchProfile();
-    } else {
-      setP2pError(result.error || 'Erro ao transferir');
+      if (transferError) throw transferError;
+
+      const result = data as { success: boolean; error?: string; transfer_id?: string };
+
+      if (result.success) {
+        toast({ title: 'Transferência realizada!', description: `${amountNum} COINS enviados para ${selectedRecipient.display_name || 'usuário'}` });
+        setRecipientEmail('');
+        setP2pAmount('');
+        setP2pNote('');
+        setSelectedRecipient(null);
+        setSelectedType(null);
+        refetchProfile();
+      } else {
+        setP2pError(result.error || 'Erro ao transferir');
+      }
+    } catch (err) {
+      setP2pError(err instanceof Error ? err.message : 'Erro ao transferir');
+    } finally {
+      setP2pSending(false);
     }
   };
 
