@@ -81,12 +81,13 @@ export function AvatarUpload({
         throw uploadError;
       }
 
-      // Get public URL
-      const { data: urlData } = supabase.storage
+      // Get signed URL (bucket is private)
+      const { data: urlData, error: urlError } = await supabase.storage
         .from('avatars')
-        .getPublicUrl(fileName);
+        .createSignedUrl(fileName, 60 * 60 * 24 * 365);
 
-      onUploadComplete(urlData.publicUrl);
+      if (urlError) throw urlError;
+      onUploadComplete(urlData.signedUrl);
       
       toast({
         title: 'Foto atualizada',
