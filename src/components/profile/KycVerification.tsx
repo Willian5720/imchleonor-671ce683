@@ -1,113 +1,131 @@
 import { useState, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ShieldCheck, Camera, Upload, Loader2, CheckCircle2, Clock, ShieldX, AlertTriangle } from 'lucide-react';
+import { ShieldCheck, Camera, Upload, Loader2, CheckCircle2, Clock, ShieldX, AlertTriangle, X } from 'lucide-react';
 import { useKycStatus } from '@/hooks/useKycStatus';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+type Slot = 'selfie' | 'bi_front' | 'bi_back';
+
+const SLOT_META: Record<Slot, { label: string; hint: string; useCamera: boolean }> = {
+  selfie:   { label: 'Foto do Rosto (Selfie)', hint: 'Foto nítida do seu rosto, sem óculos escuros ou chapéu.', useCamera: true },
+  bi_front: { label: 'BI — Frente',           hint: 'Lado da frente do seu Bilhete de Identidade angolano.',     useCamera: false },
+  bi_back:  { label: 'BI — Verso',            hint: 'Lado de trás do seu Bilhete de Identidade angolano.',       useCamera: false },
+};
+
 export function KycVerification() {
   const { user } = useAuth();
   const { kyc, isVerified, isPending, isRejected, hasSubmitted, loading, refetch } = useKycStatus();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [extractedData, setExtractedData] = useState<{
-    full_name?: string;
-    document_number?: string;
-    date_of_birth?: string;
-  } | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const [files, setFiles] = useState<Record<Slot, File | null>>({
+    selfie: null, bi_front: null, bi_back: null,
+  });
+  const [previews, setPreviews] = useState<Record<Slot, string | null>>({
+    selfie: null, bi_front: null, bi_back: null,
+  });
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const inputRefs: Record<Slot, React.RefObject<HTMLInputElement>> = {
+    selfie: useRef<HTMLInputElement>(null),
+    bi_front: useRef<HTMLInputElement>(null),
+    bi_back: useRef<HTMLInputElement>(null),
+  };
+
+  const handleFileSelect = (slot: Slot) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     if (file.size > 10 * 1024 * 1024) {
       toast.error('Ficheiro muito grande. Máximo: 10MB');
       return;
     }
-
-    setSelectedFile(file);
+    setFiles((prev) => ({ ...prev, [slot]: file }));
     const reader = new FileReader();
     reader.onload = (ev) => {
-      setImagePreview(ev.target?.result as string);
+      setPreviews((prev) => ({ ...prev, [slot]: ev.target?.result as string }));
     };
     reader.readAsDataURL(file);
-    setExtractedData(null);
   };
 
-  const handleProcessDocument = async () => {
-    if (!selectedFile || !user) return;
+  const removeSlot = (slot: Slot) => {
+    setFiles((prev) => ({ ...prev, [slot]: null }));
+    setPreviews((prev) => ({ ...prev, [slot]: null }));
+    if (inputRefs[slot].current) inputRefs[slot].current!.value = '';
+  };
 
+  const allReady = !!(files.selfie && files.bi_front && files.bi_back);
+
+  const uploadAndSign = async (slot: Slot, file: File): Promise<{ path: string; signedUrl: string }> => {
+    const ext = file.name.split('.').pop() || 'jpg';
+    const path = `${user!.id}/kyc-${slot}.${ext}`;
+    const { error: upErr } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
+    if (upErr) throw upErr;
+    const { data, error } = await supabase.storage.from('avatars').createSignedUrl(path, 60 * 60);
+    if (error || !data) throw error || new Error('Erro ao assinar URL');
+    return { path, signedUrl: data.signedUrl };
+  };
+
+  const handleSubmit = async () => {
+    if (!user || !allReady) return;
     setProcessing(true);
     try {
-      // Upload image to storage
-      const fileExt = selectedFile.name.split('.').pop();
-      const filePath = `${user.id}/kyc-document.${fileExt}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, selectedFile, { upsert: true });
+      // Upload the 3 images and get signed URLs
+      const [selfie, biFront, biBack] = await Promise.all([
+        uploadAndSign('selfie', files.selfie!),
+        uploadAndSign('bi_front', files.bi_front!),
+        uploadAndSign('bi_back', files.bi_back!),
+      ]);
 
-      if (uploadError) throw uploadError;
-
-      const { data: urlData, error: urlError } = await supabase.storage
-        .from('avatars')
-        .createSignedUrl(filePath, 60 * 60); // 1h is enough for AI processing
-      if (urlError) throw urlError;
-
-      // Call AI to extract document data
-      const { data: extractResult, error: extractError } = await supabase.functions.invoke('extract-document-data', {
-        body: { image_url: urlData.signedUrl },
+      // Validate via AI
+      const { data: result, error: extractError } = await supabase.functions.invoke('extract-document-data', {
+        body: {
+          selfie_url: selfie.signedUrl,
+          bi_front_url: biFront.signedUrl,
+          bi_back_url: biBack.signedUrl,
+        },
       });
-
       if (extractError) throw extractError;
 
-      const extracted = extractResult?.data || {};
-      setExtractedData({
-        full_name: extracted.full_name || '',
-        document_number: extracted.document_number || '',
-        date_of_birth: extracted.date_of_birth || '',
-      });
+      const verified = !!result?.verified;
+      const rejectionReason = result?.rejection_reason || null;
+      const extracted = result?.data || {};
 
-      // Save KYC record
       const kycData = {
         user_id: user.id,
-        status: 'pending' as const,
+        status: verified ? 'verified' : 'rejected',
         document_type: 'bilhete_identidade',
         document_number: extracted.document_number || null,
         full_name: extracted.full_name || null,
         date_of_birth: extracted.date_of_birth || null,
-        document_image_url: filePath,
-        extracted_data: extracted,
+        document_image_url: biFront.path,
+        extracted_data: { ...extracted, checks: result?.checks, selfie_path: selfie.path, bi_back_path: biBack.path },
+        rejection_reason: verified ? null : rejectionReason,
+        verified_at: verified ? new Date().toISOString() : null,
       };
 
       if (hasSubmitted) {
-        const { error } = await supabase
-          .from('kyc_verifications')
-          .update(kycData)
-          .eq('user_id', user.id);
+        const { error } = await supabase.from('kyc_verifications').update(kycData).eq('user_id', user.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase
-          .from('kyc_verifications')
-          .insert(kycData);
+        const { error } = await supabase.from('kyc_verifications').insert(kycData);
         if (error) throw error;
       }
 
-      toast.success('Documento enviado para verificação!');
+      if (verified) {
+        toast.success('Verificação aprovada! Sua conta está verificada.');
+        setDialogOpen(false);
+        setFiles({ selfie: null, bi_front: null, bi_back: null });
+        setPreviews({ selfie: null, bi_front: null, bi_back: null });
+      } else {
+        toast.error(rejectionReason || 'Verificação rejeitada. Tente novamente com fotos melhores.');
+      }
       refetch();
     } catch (error) {
       console.error('KYC error:', error);
-      toast.error('Erro ao processar documento. Tente novamente.');
+      toast.error('Erro ao processar verificação. Tente novamente.');
     } finally {
       setProcessing(false);
     }
@@ -115,7 +133,6 @@ export function KycVerification() {
 
   if (loading) return null;
 
-  // Already verified
   if (isVerified) {
     return (
       <Card className="bg-gradient-to-br from-green-500/10 to-green-600/5 border-green-500/30">
@@ -132,7 +149,6 @@ export function KycVerification() {
     );
   }
 
-  // Pending review
   if (isPending) {
     return (
       <Card className="bg-gradient-to-br from-amber-500/10 to-amber-600/5 border-amber-500/30">
@@ -142,7 +158,7 @@ export function KycVerification() {
           </div>
           <div>
             <p className="font-medium text-foreground">Verificação em Análise</p>
-            <p className="text-xs text-muted-foreground">Seu documento está sendo analisado. Aguarde a aprovação.</p>
+            <p className="text-xs text-muted-foreground">Seu documento está sendo analisado.</p>
           </div>
         </CardContent>
       </Card>
@@ -155,21 +171,16 @@ export function KycVerification() {
         <CardContent className="p-5">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-              {isRejected ? (
-                <ShieldX className="w-6 h-6 text-destructive" />
-              ) : (
-                <AlertTriangle className="w-6 h-6 text-amber-500" />
-              )}
+              {isRejected ? <ShieldX className="w-6 h-6 text-destructive" /> : <AlertTriangle className="w-6 h-6 text-amber-500" />}
             </div>
             <div className="flex-1">
               <p className="font-medium text-foreground">
                 {isRejected ? 'Verificação Rejeitada' : 'Verifique sua Conta'}
               </p>
               <p className="text-xs text-muted-foreground">
-                {isRejected 
-                  ? (kyc?.rejection_reason || 'Envie novamente o seu documento')
-                  : 'Envie uma foto do seu Bilhete de Identidade para verificar sua conta'
-                }
+                {isRejected
+                  ? (kyc?.rejection_reason || 'Envie novamente as suas fotos.')
+                  : 'Envie uma selfie e as duas faces do seu BI angolano para verificar.'}
               </p>
             </div>
             <Button size="sm" onClick={() => setDialogOpen(true)}>
@@ -180,107 +191,79 @@ export function KycVerification() {
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md bg-background border-border">
+        <DialogContent className="sm:max-w-lg bg-background border-border max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ShieldCheck className="w-5 h-5 text-primary" />
-              Verificação de Identidade
+              Verificação de Identidade (Angola)
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             <p className="text-sm text-muted-foreground">
-              Tire uma foto ou faça upload do seu Bilhete de Identidade. O sistema irá extrair os dados automaticamente.
+              Envie as <strong>3 fotos</strong> abaixo. A verificação só é aprovada se a selfie corresponder ao rosto do seu Bilhete de Identidade angolano.
             </p>
 
-            {/* Image preview */}
-            {imagePreview ? (
-              <div className="relative rounded-xl overflow-hidden border border-border">
-                <img src={imagePreview} alt="Documento" className="w-full h-48 object-cover" />
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="absolute top-2 right-2"
-                  onClick={() => { setImagePreview(null); setSelectedFile(null); setExtractedData(null); }}
-                >
-                  Trocar
-                </Button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-3">
-                <Button
-                  variant="outline"
-                  className="h-24 flex-col gap-2 rounded-xl"
-                  onClick={() => cameraInputRef.current?.click()}
-                >
-                  <Camera className="w-6 h-6" />
-                  <span className="text-xs">Tirar Foto</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-24 flex-col gap-2 rounded-xl"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <Upload className="w-6 h-6" />
-                  <span className="text-xs">Carregar Ficheiro</span>
-                </Button>
-              </div>
-            )}
+            {(['selfie', 'bi_front', 'bi_back'] as Slot[]).map((slot) => {
+              const meta = SLOT_META[slot];
+              const preview = previews[slot];
+              return (
+                <div key={slot} className="space-y-2">
+                  <Label className="text-sm font-medium">{meta.label}</Label>
+                  <p className="text-xs text-muted-foreground">{meta.hint}</p>
 
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleFileSelect}
-            />
-            <input
-              ref={cameraInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={handleFileSelect}
-            />
+                  {preview ? (
+                    <div className="relative rounded-xl overflow-hidden border border-border">
+                      <img src={preview} alt={meta.label} className="w-full h-40 object-cover" />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="absolute top-2 right-2 h-8 w-8"
+                        onClick={() => removeSlot(slot)}
+                        type="button"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      className="w-full h-20 flex-col gap-1 rounded-xl"
+                      onClick={() => inputRefs[slot].current?.click()}
+                      type="button"
+                    >
+                      {meta.useCamera ? <Camera className="w-5 h-5" /> : <Upload className="w-5 h-5" />}
+                      <span className="text-xs">{meta.useCamera ? 'Tirar selfie' : 'Carregar foto'}</span>
+                    </Button>
+                  )}
 
-            {/* Extracted data preview */}
-            {extractedData && (
-              <div className="p-4 rounded-xl border border-primary/30 bg-primary/5 space-y-3">
-                <p className="text-sm font-medium flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-primary" />
-                  Dados Extraídos
-                </p>
-                <div className="space-y-2 text-sm">
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Nome Completo</Label>
-                    <p className="font-medium">{extractedData.full_name || 'Não detectado'}</p>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Nº do Documento</Label>
-                    <p className="font-medium">{extractedData.document_number || 'Não detectado'}</p>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Data de Nascimento</Label>
-                    <p className="font-medium">{extractedData.date_of_birth || 'Não detectado'}</p>
-                  </div>
+                  <input
+                    ref={inputRefs[slot]}
+                    type="file"
+                    accept="image/*"
+                    {...(meta.useCamera ? { capture: 'user' as const } : {})}
+                    className="hidden"
+                    onChange={handleFileSelect(slot)}
+                  />
                 </div>
-              </div>
-            )}
+              );
+            })}
 
             <Button
-              onClick={handleProcessDocument}
-              disabled={!selectedFile || processing}
+              onClick={handleSubmit}
+              disabled={!allReady || processing}
               className="w-full h-12 rounded-xl"
             >
               {processing ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Processando documento...
+                  Validando documentos...
                 </>
-              ) : extractedData ? (
-                'Enviar para Verificação'
               ) : (
-                'Processar Documento'
+                <>
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                  Enviar para Verificação
+                </>
               )}
             </Button>
           </div>
