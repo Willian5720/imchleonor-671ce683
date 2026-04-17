@@ -1,24 +1,81 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+function isAllowedOrigin(origin: string | null): boolean {
+  if (!origin) return false;
+  if (origin.endsWith('.lovable.app') || origin.endsWith('.lovableproject.com')) return true;
+  if (origin.startsWith('http://localhost:')) return true;
+  return false;
+}
+
+function getCorsHeaders(origin: string | null) {
+  const allowedOrigin = isAllowedOrigin(origin)
+    ? origin
+    : 'https://id-preview--9c0d21cf-f928-4ca6-aa56-52434ef1887f.lovable.app';
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin!,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Credentials': 'true',
+  };
+}
 
 serve(async (req) => {
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
+
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    // --- AUTH: require valid JWT ---
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user }, error: authError } = await userClient.auth.getUser();
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: 'Invalid or expired token' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
     const { image_url } = await req.json();
-    if (!image_url) {
+    if (!image_url || typeof image_url !== 'string') {
       return new Response(JSON.stringify({ error: 'image_url is required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // --- Validate image_url is a Supabase signed storage URL from our project ---
+    let parsed: URL;
+    try {
+      parsed = new URL(image_url);
+    } catch {
+      return new Response(JSON.stringify({ error: 'Invalid image_url' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const projectHost = new URL(supabaseUrl).host;
+    if (parsed.host !== projectHost || !parsed.pathname.includes('/storage/v1/object/sign/')) {
+      return new Response(JSON.stringify({ error: 'image_url must be a signed storage URL from this project' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -47,14 +104,8 @@ Example: {"full_name": "João Silva", "document_number": "123456789LA042", "date
           {
             role: 'user',
             content: [
-              {
-                type: 'image_url',
-                image_url: { url: image_url },
-              },
-              {
-                type: 'text',
-                text: 'Extract the identity document data from this image. Return only JSON.',
-              },
+              { type: 'image_url', image_url: { url: image_url } },
+              { type: 'text', text: 'Extract the identity document data from this image. Return only JSON.' },
             ],
           },
         ],
@@ -69,7 +120,7 @@ Example: {"full_name": "João Silva", "document_number": "123456789LA042", "date
 
     const aiResult = await response.json();
     const content = aiResult.choices?.[0]?.message?.content || '{}';
-    
+
     let extractedData;
     try {
       extractedData = JSON.parse(content);
@@ -83,7 +134,7 @@ Example: {"full_name": "João Silva", "document_number": "123456789LA042", "date
     });
   } catch (error) {
     console.error('Error extracting document data:', error);
-    return new Response(JSON.stringify({ 
+    return new Response(JSON.stringify({
       error: error instanceof Error ? error.message : 'Unknown error',
       data: { full_name: null, document_number: null, date_of_birth: null }
     }), {
