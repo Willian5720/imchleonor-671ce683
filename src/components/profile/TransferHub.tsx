@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +15,7 @@ import {
   Wallet,
   Info,
 } from 'lucide-react';
-import { useUserProfile, useUserTransfers, useSearchUsers, SearchUserResult } from '@/hooks/useUserProfile';
+import { useUserProfile, useUserTransfers } from '@/hooks/useUserProfile';
 import { useDerivIntegration } from '@/hooks/useDerivIntegration';
 import { useExchangeRates } from '@/hooks/useExchangeRates';
 import { useToast } from '@/hooks/use-toast';
@@ -54,69 +54,17 @@ export function TransferHub() {
   const { user } = useAuth();
   const { profile, refetch: refetchProfile } = useUserProfile();
   const { sendTransfer } = useUserTransfers();
-  const { searchByEmail, searching: searchingUsers } = useSearchUsers();
   const { deposit: depositToDeriv, loading: derivLoading } = useDerivIntegration();
   const { IMCH_TO_USD } = useExchangeRates();
 
   const [selectedType, setSelectedType] = useState<TransferType | null>(null);
 
-  // P2P States
+  // P2P States — direct exact-email entry (no live search)
   const [recipientEmail, setRecipientEmail] = useState('');
   const [p2pAmount, setP2pAmount] = useState('');
   const [p2pNote, setP2pNote] = useState('');
   const [p2pSending, setP2pSending] = useState(false);
   const [p2pError, setP2pError] = useState<string | null>(null);
-  const [searchResults, setSearchResults] = useState<SearchUserResult[]>([]);
-  const [selectedRecipient, setSelectedRecipient] = useState<SearchUserResult | null>(null);
-  const [showResults, setShowResults] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const searchContainerRef = useRef<HTMLDivElement>(null);
-
-  // Real-time search with debounce
-  useEffect(() => {
-    if (selectedRecipient) return;
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    
-    if (recipientEmail.length < 3) {
-      setSearchResults([]);
-      setShowResults(false);
-      return;
-    }
-
-    debounceRef.current = setTimeout(async () => {
-      const results = await searchByEmail(recipientEmail);
-      setSearchResults(results);
-      setShowResults(results.length > 0);
-    }, 400);
-
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [recipientEmail, selectedRecipient]);
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
-        setShowResults(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
-
-  const selectRecipient = (u: SearchUserResult) => {
-    setSelectedRecipient(u);
-    setRecipientEmail(u.email_hint || u.display_name || '');
-    setShowResults(false);
-    setSearchResults([]);
-  };
-
-  const clearRecipient = () => {
-    setSelectedRecipient(null);
-    setRecipientEmail('');
-    setSearchResults([]);
-  };
   // Deriv States
   const [derivAmount, setDerivAmount] = useState('');
 
@@ -137,13 +85,15 @@ export function TransferHub() {
 
   const balance = profile?.coins || 0;
 
-  // P2P Transfer Handler
+  // P2P Transfer Handler — validates exact email exists before transferring
   const handleP2PTransfer = async () => {
     setP2pError(null);
     const amountNum = parseFloat(p2pAmount);
+    const emailTrimmed = recipientEmail.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    if (!selectedRecipient) {
-      setP2pError('Selecione um destinatário da lista de resultados.');
+    if (!emailRegex.test(emailTrimmed)) {
+      setP2pError('Digite um email válido.');
       return;
     }
     if (!amountNum || amountNum <= 0) {
@@ -157,25 +107,35 @@ export function TransferHub() {
 
     setP2pSending(true);
     try {
-      // Transfer using the selected recipient's ID directly
+      // Step 1: validate recipient is registered (exact email match)
+      const { data: searchData, error: searchError } = await supabase.functions.invoke('search-users', {
+        body: { email: emailTrimmed, exact_match: true },
+      });
+      if (searchError) throw searchError;
+      if (!searchData?.found) {
+        setP2pError(searchData?.error || 'Este email não está cadastrado na plataforma.');
+        setP2pSending(false);
+        return;
+      }
+      const recipient = searchData.user as { id: string; display_name: string | null };
+
+      // Step 2: execute transfer
       const { data, error: transferError } = await supabase.rpc('transfer_between_users', {
         p_from_user_id: user!.id,
-        p_to_user_id: selectedRecipient.id,
+        p_to_user_id: recipient.id,
         p_amount: amountNum,
         p_currency: 'COINS',
         p_note: p2pNote || null,
       });
-
       if (transferError) throw transferError;
 
       const result = data as { success: boolean; error?: string; transfer_id?: string };
 
       if (result.success) {
-        toast({ title: 'Transferência realizada!', description: `${amountNum} COINS enviados para ${selectedRecipient.display_name || 'usuário'}` });
+        toast({ title: 'Transferência realizada!', description: `${amountNum} COINS enviados para ${recipient.display_name || 'usuário'}` });
         setRecipientEmail('');
         setP2pAmount('');
         setP2pNote('');
-        setSelectedRecipient(null);
         setSelectedType(null);
         refetchProfile();
       } else {
@@ -397,63 +357,19 @@ export function TransferHub() {
               </Alert>
             )}
 
-            <div className="space-y-2" ref={searchContainerRef}>
+            <div className="space-y-2">
               <Label>Email do Destinatário</Label>
-              {selectedRecipient ? (
-                <div className="flex items-center gap-3 p-3 rounded-lg border border-primary/30 bg-primary/5">
-                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold text-primary">
-                    {(selectedRecipient.display_name || '?')[0].toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{selectedRecipient.display_name || 'Usuário'}</p>
-                    <p className="text-xs text-muted-foreground">{selectedRecipient.email_hint}</p>
-                  </div>
-                  <Button type="button" variant="ghost" size="sm" onClick={clearRecipient} className="text-xs text-destructive hover:text-destructive">
-                    Alterar
-                  </Button>
-                </div>
-              ) : (
-                <div className="relative">
-                  <Input
-                    type="text"
-                    value={recipientEmail}
-                    onChange={(e) => {
-                      setRecipientEmail(e.target.value);
-                      setSelectedRecipient(null);
-                    }}
-                    placeholder="Digite o email do usuário..."
-                    className="bg-background/50"
-                  />
-                  {searchingUsers && recipientEmail.length >= 3 && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                    </div>
-                  )}
-                  {showResults && searchResults.length > 0 && (
-                    <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg overflow-hidden">
-                      {searchResults.map((u) => (
-                        <button
-                          key={u.id}
-                          type="button"
-                          onClick={() => selectRecipient(u)}
-                          className="w-full flex items-center gap-3 p-3 hover:bg-accent/50 transition-colors text-left"
-                        >
-                          <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold text-primary shrink-0">
-                            {(u.display_name || '?')[0].toUpperCase()}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="font-medium text-sm truncate">{u.display_name || 'Usuário'}</p>
-                            <p className="text-xs text-muted-foreground">{u.email_hint}</p>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {!searchingUsers && recipientEmail.length >= 3 && searchResults.length === 0 && !showResults && !selectedRecipient && (
-                    <p className="text-xs text-destructive mt-1">Nenhum usuário encontrado com esse email</p>
-                  )}
-                </div>
-              )}
+              <Input
+                type="email"
+                value={recipientEmail}
+                onChange={(e) => setRecipientEmail(e.target.value)}
+                placeholder="usuario@exemplo.com"
+                className="bg-background/50"
+                autoComplete="off"
+              />
+              <p className="text-xs text-muted-foreground">
+                Digite o email exato do destinatário. Antes do envio, validaremos se ele está cadastrado.
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -472,7 +388,7 @@ export function TransferHub() {
               <Textarea value={p2pNote} onChange={(e) => setP2pNote(e.target.value)} placeholder="Adicione uma mensagem..." className="bg-background/50 min-h-[60px]" />
             </div>
 
-            <Button type="submit" className="w-full" disabled={p2pSending || !selectedRecipient}>
+            <Button type="submit" className="w-full" disabled={p2pSending || !recipientEmail.trim() || !p2pAmount}>
               {p2pSending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
               Enviar Transferência
             </Button>
