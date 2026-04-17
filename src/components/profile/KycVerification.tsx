@@ -59,13 +59,14 @@ export function KycVerification() {
 
       if (uploadError) throw uploadError;
 
-      const { data: urlData } = supabase.storage
+      const { data: urlData, error: urlError } = await supabase.storage
         .from('avatars')
-        .getPublicUrl(filePath);
+        .createSignedUrl(filePath, 60 * 60); // 1h is enough for AI processing
+      if (urlError) throw urlError;
 
       // Call AI to extract document data
       const { data: extractResult, error: extractError } = await supabase.functions.invoke('extract-document-data', {
-        body: { image_url: urlData.publicUrl },
+        body: { image_url: urlData.signedUrl },
       });
 
       if (extractError) throw extractError;
@@ -85,7 +86,7 @@ export function KycVerification() {
         document_number: extracted.document_number || null,
         full_name: extracted.full_name || null,
         date_of_birth: extracted.date_of_birth || null,
-        document_image_url: urlData.publicUrl,
+        document_image_url: filePath,
         extracted_data: extracted,
       };
 

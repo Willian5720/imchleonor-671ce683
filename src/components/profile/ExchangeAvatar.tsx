@@ -62,8 +62,11 @@ export function ExchangeAvatar({
 
       if (uploadError) throw uploadError;
 
-      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(fileName);
-      onUploadComplete(urlData.publicUrl);
+      const { data: urlData, error: urlError } = await supabase.storage
+        .from('avatars')
+        .createSignedUrl(fileName, 60 * 60 * 24 * 365);
+      if (urlError) throw urlError;
+      onUploadComplete(urlData.signedUrl);
       toast({ title: `Foto ${name} atualizada` });
     } catch (error) {
       console.error('Upload error:', error);
