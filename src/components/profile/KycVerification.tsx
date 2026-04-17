@@ -86,7 +86,7 @@ export function KycVerification() {
         document_number: extracted.document_number || null,
         full_name: extracted.full_name || null,
         date_of_birth: extracted.date_of_birth || null,
-        document_image_url: urlData.publicUrl,
+        document_image_url: filePath,
         extracted_data: extracted,
       };
 
