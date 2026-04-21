@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CryptoTicker } from '@/components/crypto/CryptoTicker';
+import { ExchangeAvatarsRow } from '@/components/profile/ExchangeAvatarsRow';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -45,8 +46,8 @@ export default function Exchange() {
       <div className="p-4 pb-8 max-w-4xl mx-auto space-y-6">
 
         {/* User Profile Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3" onClick={() => navigate('/profile')} role="button">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/profile')} role="button">
             {profileLoading ? (
               <Skeleton className="w-12 h-12 rounded-full" />
             ) : (
@@ -71,7 +72,7 @@ export default function Exchange() {
               </div>
             </div>
           </div>
-          <img src="/pwa-192x192.png" alt="IMCHLEONOR" className="w-10 h-10 rounded-xl" />
+          <ExchangeAvatarsRow />
         </div>
 
         {/* My Assets Card */}
