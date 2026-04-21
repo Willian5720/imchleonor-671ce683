@@ -4,6 +4,52 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Roboto:wght@400;500;700&display=swap');
 
+/* Driver.js tour — themed to match IMCHLEONOR design system */
+.imch-tour-popover.driver-popover {
+  background: hsl(var(--card)) !important;
+  color: hsl(var(--foreground)) !important;
+  border: 1px solid hsl(var(--primary) / 0.4) !important;
+  border-radius: 0.75rem !important;
+  box-shadow: 0 10px 40px -10px hsl(var(--primary) / 0.4) !important;
+}
+.imch-tour-popover .driver-popover-title {
+  color: hsl(var(--foreground)) !important;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+}
+.imch-tour-popover .driver-popover-description {
+  color: hsl(var(--muted-foreground)) !important;
+}
+.imch-tour-popover .driver-popover-progress-text {
+  color: hsl(var(--primary)) !important;
+}
+.imch-tour-popover .driver-popover-next-btn,
+.imch-tour-popover .driver-popover-prev-btn {
+  background: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+  text-shadow: none !important;
+  border: none !important;
+  border-radius: 0.5rem !important;
+  padding: 0.4rem 0.8rem !important;
+  font-size: 0.8rem !important;
+}
+.imch-tour-popover .driver-popover-prev-btn {
+  background: hsl(var(--muted)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+.imch-tour-popover .driver-popover-arrow-side-bottom.driver-popover-arrow {
+  border-bottom-color: hsl(var(--card)) !important;
+}
+.imch-tour-popover .driver-popover-arrow-side-top.driver-popover-arrow {
+  border-top-color: hsl(var(--card)) !important;
+}
+.imch-tour-popover .driver-popover-arrow-side-left.driver-popover-arrow {
+  border-left-color: hsl(var(--card)) !important;
+}
+.imch-tour-popover .driver-popover-arrow-side-right.driver-popover-arrow {
+  border-right-color: hsl(var(--card)) !important;
+}
+
 @layer base {
   :root {
     --background: 240 10% 4%;

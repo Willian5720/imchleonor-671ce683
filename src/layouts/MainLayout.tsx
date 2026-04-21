@@ -4,6 +4,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { AppSidebar } from '@/components/AppSidebar';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Loader2 } from 'lucide-react';
+import { OnboardingProvider } from '@/components/onboarding/OnboardingProvider';
 
 export const MainLayout = () => {
   const { isAuthenticated, loading: authLoading } = useAuth();
@@ -34,6 +35,7 @@ export const MainLayout = () => {
           </header>
           <Outlet />
         </main>
+        <OnboardingProvider />
       </div>
     </SidebarProvider>
   );
