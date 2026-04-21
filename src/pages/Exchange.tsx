@@ -46,7 +46,7 @@ export default function Exchange() {
       <div className="p-4 pb-8 max-w-4xl mx-auto space-y-6">
 
         {/* User Profile Header */}
-        <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center justify-between gap-3 flex-wrap" data-tour="profile-header">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/profile')} role="button">
             {profileLoading ? (
               <Skeleton className="w-12 h-12 rounded-full" />
@@ -72,11 +72,13 @@ export default function Exchange() {
               </div>
             </div>
           </div>
-          <ExchangeAvatarsRow />
+          <div data-tour="exchange-avatars">
+            <ExchangeAvatarsRow />
+          </div>
         </div>
 
         {/* My Assets Card */}
-        <Card className="bg-gradient-to-br from-card to-card/80 border-border/50">
+        <Card className="bg-gradient-to-br from-card to-card/80 border-border/50" data-tour="balance-card">
           <CardContent className="p-5">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
@@ -158,7 +160,7 @@ export default function Exchange() {
         </div>
 
         {/* Markets Section */}
-        <div>
+        <div data-tour="crypto-list">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-foreground">Mercados</h3>
             <button className="text-xs text-primary hover:text-primary/80 flex items-center gap-1">
