@@ -28,13 +28,13 @@ export function AppSidebar() {
   const accountItems = [
     { title: 'Início', url: '/', icon: Home },
     { title: 'Meu Perfil', url: '/profile', icon: User },
-    { title: 'Carteira', url: '/wallet', icon: Wallet },
-    { title: 'Enviar', url: '/send', icon: Send },
-    { title: 'Histórico', url: '/history', icon: Clock },
+    { title: 'Carteira', url: '/wallet', icon: Wallet, tour: 'sidebar-wallet' },
+    { title: 'Enviar', url: '/send', icon: Send, tour: 'sidebar-send' },
+    { title: 'Histórico', url: '/history', icon: Clock, tour: 'sidebar-history' },
   ];
 
   const settingsItems = [
-    { title: 'Configurações', url: '/settings', icon: Settings },
+    { title: 'Configurações', url: '/settings', icon: Settings, tour: 'sidebar-settings' },
   ];
 
   const adminItems = isAdmin ? [
@@ -62,12 +62,12 @@ export function AppSidebar() {
     return currentPath === url;
   };
 
-  const renderMenuItems = (items: typeof accountItems) => (
+  const renderMenuItems = (items: Array<{ title: string; url: string; icon: typeof Home; tour?: string }>) => (
     <SidebarMenu>
       {items.map((item) => {
         const active = isActive(item.url);
         return (
-          <SidebarMenuItem key={item.title}>
+          <SidebarMenuItem key={item.title} data-tour={item.tour}>
             <SidebarMenuButton asChild isActive={active} tooltip={item.title}>
               <NavLink
                 to={item.url}
