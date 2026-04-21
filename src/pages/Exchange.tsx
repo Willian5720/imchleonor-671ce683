@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { KycBadge } from '@/components/profile/KycBadge';
 import { KycVerification } from '@/components/profile/KycVerification';
-import { Eye, EyeOff, Plus, ArrowDownUp, TrendingUp, TrendingDown, Star, ChevronRight, Gift, Megaphone, Wallet } from 'lucide-react';
+import { Eye, EyeOff, Plus, TrendingUp, TrendingDown, Star, ChevronRight, Megaphone, Wallet, Shield, Zap, Globe, Lock } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -119,43 +119,38 @@ export default function Exchange() {
         {/* KYC Verification Banner */}
         <KycVerification />
 
-        {/* For You Section */}
+        {/* About IMCHLEONOR */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-foreground">Para Você</h3>
-            <button className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
-              Atualizar
-            </button>
+            <h3 className="font-semibold text-foreground">Sobre a IMCHLEONOR</h3>
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20 cursor-pointer hover:border-primary/40 transition-colors">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
               <CardContent className="p-3">
-                <div className="flex items-center gap-1.5 mb-2">
-                  <span className="text-lg">💰</span>
-                  <span className="text-xs font-bold text-primary">IMCH</span>
-                </div>
-                <p className="text-[10px] text-muted-foreground leading-tight">Ganhe rendimentos com IMCH Coin. APR flexível.</p>
-                <p className="text-xs font-bold text-primary mt-2">APR 5.63%</p>
+                <Shield className="w-5 h-5 text-primary mb-2" />
+                <p className="text-xs font-bold text-foreground">Segurança</p>
+                <p className="text-[10px] text-muted-foreground leading-tight mt-1">KYC e criptografia de ponta para proteger seus ativos.</p>
               </CardContent>
             </Card>
-            <Card className="bg-gradient-to-br from-secondary/10 to-secondary/5 border-secondary/20 cursor-pointer hover:border-secondary/40 transition-colors">
+            <Card className="bg-gradient-to-br from-secondary/10 to-secondary/5 border-secondary/20">
               <CardContent className="p-3">
-                <div className="flex items-center gap-1.5 mb-2">
-                  <span className="text-lg">🏆</span>
-                  <span className="text-xs font-bold text-secondary">PONTUAÇÃO</span>
-                </div>
-                <p className="text-[10px] text-muted-foreground leading-tight">Complete tarefas simples e ganhe prémios.</p>
-                <p className="text-xs font-bold text-secondary mt-2">5 000 000</p>
+                <Zap className="w-5 h-5 text-secondary mb-2" />
+                <p className="text-xs font-bold text-foreground">Sem Taxas</p>
+                <p className="text-[10px] text-muted-foreground leading-tight mt-1">Transferências P2P e conversões IMCH sem custos.</p>
               </CardContent>
             </Card>
-            <Card className="bg-gradient-to-br from-amber-500/10 to-amber-500/5 border-amber-500/20 cursor-pointer hover:border-amber-500/40 transition-colors">
+            <Card className="bg-gradient-to-br from-amber-500/10 to-amber-500/5 border-amber-500/20">
               <CardContent className="p-3">
-                <div className="flex items-center gap-1.5 mb-2">
-                  <span className="text-lg">🧩</span>
-                  <span className="text-xs font-bold text-amber-500">NOITE</span>
-                </div>
-                <p className="text-[10px] text-muted-foreground leading-tight">Caça ao Quebra-Cabeça noturno.</p>
-                <p className="text-xs font-bold text-amber-500 mt-2">4 000 000</p>
+                <Globe className="w-5 h-5 text-amber-500 mb-2" />
+                <p className="text-xs font-bold text-foreground">Global</p>
+                <p className="text-[10px] text-muted-foreground leading-tight mt-1">Conectado a Bybit, Binance, Deriv e Redotpay.</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+              <CardContent className="p-3">
+                <Lock className="w-5 h-5 text-primary mb-2" />
+                <p className="text-xs font-bold text-foreground">Blockchain</p>
+                <p className="text-[10px] text-muted-foreground leading-tight mt-1">Ledger interno auditável e endereços verificados.</p>
               </CardContent>
             </Card>
           </div>
@@ -199,41 +194,6 @@ export default function Exchange() {
               <MarketTable cryptos={[...topCryptos].sort((a, b) => a.change24h - b.change24h).slice(0, 5)} loading={pricesLoading} />
             </TabsContent>
           </Tabs>
-        </div>
-
-        {/* Trending Events */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-foreground flex items-center gap-2">
-              <Gift className="w-4 h-4 text-primary" /> Eventos em Alta
-            </h3>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Card className="bg-card/80 border-border/50 cursor-pointer hover:border-primary/30 transition-colors">
-              <CardContent className="p-3">
-                <p className="text-xs font-medium text-foreground">🔄 Compra recorrente de IMCH</p>
-                <p className="text-[10px] text-muted-foreground mt-1">Automatize suas compras</p>
-              </CardContent>
-            </Card>
-            <Card className="bg-card/80 border-border/50 cursor-pointer hover:border-primary/30 transition-colors">
-              <CardContent className="p-3">
-                <p className="text-xs font-medium text-foreground">🎁 Indique amigos</p>
-                <p className="text-[10px] text-muted-foreground mt-1">Ganhe bónus de indicação</p>
-              </CardContent>
-            </Card>
-            <Card className="bg-card/80 border-border/50 cursor-pointer hover:border-primary/30 transition-colors">
-              <CardContent className="p-3">
-                <p className="text-xs font-medium text-foreground">📈 Mantenha-se ativo</p>
-                <p className="text-[10px] text-muted-foreground mt-1">Receba recompensas diárias</p>
-              </CardContent>
-            </Card>
-            <Card className="bg-card/80 border-border/50 cursor-pointer hover:border-primary/30 transition-colors">
-              <CardContent className="p-3">
-                <p className="text-xs font-medium text-foreground">💎 Programa VIP</p>
-                <p className="text-[10px] text-muted-foreground mt-1">Taxas com desconto</p>
-              </CardContent>
-            </Card>
-          </div>
         </div>
 
         {/* Announcements */}
