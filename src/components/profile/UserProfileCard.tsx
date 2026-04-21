@@ -10,7 +10,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { AvatarUpload } from './AvatarUpload';
-import { ExchangeAvatar } from './ExchangeAvatar';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -155,46 +154,6 @@ export function UserProfileCard() {
               <span className="text-sm text-muted-foreground">IMCH</span>
               <span className="text-xs text-muted-foreground">(≈ ${profile?.coins?.toLocaleString() || 0} USD)</span>
             </div>
-          </div>
-
-          {/* Exchange Profile Icons Row */}
-          <div className="flex items-center gap-4 pt-2 border-t border-border/50 w-full justify-center">
-            <ExchangeAvatar
-              name="Bybit"
-              avatarUrl={profileData?.bybit_avatar_url}
-              profileLink={profileData?.bybit_profile_link}
-              userId={user?.id || ''}
-              onUploadComplete={(url) => handleExchangeAvatarUpload('bybit_avatar_url', url)}
-              fallbackColor="bg-orange-500/20 text-orange-400"
-              fallbackText="BB"
-            />
-            <ExchangeAvatar
-              name="Deriv"
-              avatarUrl={profileData?.deriv_avatar_url}
-              profileLink={profileData?.deriv_profile_link}
-              userId={user?.id || ''}
-              onUploadComplete={(url) => handleExchangeAvatarUpload('deriv_avatar_url', url)}
-              fallbackColor="bg-red-500/20 text-red-400"
-              fallbackText="DV"
-            />
-            <ExchangeAvatar
-              name="Binance"
-              avatarUrl={profileData?.binance_avatar_url}
-              profileLink={profileData?.binance_profile_link}
-              userId={user?.id || ''}
-              onUploadComplete={(url) => handleExchangeAvatarUpload('binance_avatar_url', url)}
-              fallbackColor="bg-yellow-500/20 text-yellow-400"
-              fallbackText="BN"
-            />
-            <ExchangeAvatar
-              name="Redotpay"
-              avatarUrl={profileData?.redotpay_avatar_url}
-              profileLink={profileData?.redotpay_profile_link}
-              userId={user?.id || ''}
-              onUploadComplete={(url) => handleExchangeAvatarUpload('redotpay_avatar_url', url)}
-              fallbackColor="bg-blue-500/20 text-blue-400"
-              fallbackText="RP"
-            />
           </div>
 
           {!isEditing && (
