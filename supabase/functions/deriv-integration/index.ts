@@ -266,21 +266,38 @@ serve(async (req) => {
       }
       
       case 'withdraw': {
-        // SECURITY: Only admins can credit IMCH via withdrawal
-        const { data: isAdminWithdraw } = await supabase.rpc('has_role', { _user_id: user.id, _role: 'admin' });
-        if (!isAdminWithdraw) {
-          return new Response(JSON.stringify({ error: 'Unauthorized: Admin only action' }), {
-            status: 403,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
-        }
-
-        // Withdraw from Deriv to IMCH
+        // Withdraw from Deriv balance back to IMCH wallet.
+        // SECURITY: A user can only withdraw up to the USD equivalent currently
+        // credited on Deriv for their own account (tracked via deriv_transactions).
         if (!amount_imch || amount_imch <= 0) {
           throw new Error('Invalid amount');
         }
-        
+
         const amount_usd = amount_imch * IMCH_TO_USD_RATE;
+
+        // Compute available Deriv balance = sum(deposits) - sum(withdrawals)
+        const { data: derivTxs } = await supabase
+          .from('deriv_transactions')
+          .select('transaction_type, amount_usd, status')
+          .eq('user_id', user.id)
+          .eq('status', 'completed');
+
+        const depositedUsd = (derivTxs || [])
+          .filter((t) => t.transaction_type === 'deposit')
+          .reduce((acc, t) => acc + Number(t.amount_usd), 0);
+        const withdrawnUsd = (derivTxs || [])
+          .filter((t) => t.transaction_type === 'withdrawal')
+          .reduce((acc, t) => acc + Number(t.amount_usd), 0);
+        const availableUsd = depositedUsd - withdrawnUsd;
+
+        if (amount_usd > availableUsd + 1e-6) {
+          return new Response(JSON.stringify({
+            error: `Saldo Deriv insuficiente. Disponível: $${availableUsd.toFixed(2)} USD`,
+          }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
         
         // Generate unique addresses for the transaction
         const { data: fromAddress } = await supabase.rpc('generate_wallet_address', { p_prefix: 'eth' });
