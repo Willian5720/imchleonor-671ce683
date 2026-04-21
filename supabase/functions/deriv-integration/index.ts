@@ -288,11 +288,11 @@ serve(async (req) => {
         const withdrawnUsd = (derivTxs || [])
           .filter((t) => t.transaction_type === 'withdrawal')
           .reduce((acc, t) => acc + Number(t.amount_usd), 0);
-        const availableUsd = depositedUsd - withdrawnUsd;
+        const availableUsd = Math.max(0, depositedUsd - withdrawnUsd);
 
         if (amount_usd > availableUsd + 1e-6) {
           return new Response(JSON.stringify({
-            error: `Saldo Deriv insuficiente. Disponível: $${availableUsd.toFixed(2)} USD`,
+            error: `Saldo Deriv insuficiente. Disponível: $${availableUsd.toFixed(2)} USD. Faça um depósito primeiro.`,
           }), {
             status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
