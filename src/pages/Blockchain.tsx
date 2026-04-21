@@ -13,15 +13,22 @@ import { DerivTransferForm } from '@/components/blockchain/DerivTransferForm';
 import { DerivTransactionHistory } from '@/components/blockchain/DerivTransactionHistory';
 import { BlockchainExplorer } from '@/components/blockchain/BlockchainExplorer';
 import { useDerivIntegration } from '@/hooks/useDerivIntegration';
+import { useUserProfile } from '@/hooks/useUserProfile';
+import { useExchangeRates } from '@/hooks/useExchangeRates';
 
 const Blockchain = () => {
-  const { transactions, blockchainBlocks, loading } = useDerivIntegration();
+  const { transactions, blockchainBlocks, loading, derivBalance } = useDerivIntegration();
+  const { profile } = useUserProfile();
+  const { IMCH_TO_USD } = useExchangeRates();
+
+  const completedTxs = transactions.filter((t) => t.status === 'completed');
+  const totalVolumeImch = completedTxs.reduce((acc, tx) => acc + Number(tx.amount_imch), 0);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-      <div className="container py-8 space-y-8">
+      <div className="container py-8 space-y-6 max-w-5xl">
         {/* Header */}
-        <div className="space-y-4">
+        <div className="space-y-3">
           <div className="flex items-center gap-3">
             <div className="p-3 rounded-xl bg-primary/10">
               <Boxes className="h-8 w-8 text-primary" />
@@ -35,8 +42,7 @@ const Blockchain = () => {
               </p>
             </div>
           </div>
-          
-          {/* Feature badges */}
+
           <div className="flex flex-wrap gap-2">
             <Badge variant="outline" className="gap-1">
               <Shield className="h-3 w-3" />
@@ -53,26 +59,40 @@ const Blockchain = () => {
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Stats — ordenadas: Saldo IMCH · Saldo Deriv · Blocos · Transações · Volume */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <div className="bg-card/50 backdrop-blur border border-border rounded-lg p-4">
-            <p className="text-sm text-muted-foreground">Total de Blocos</p>
-            <p className="text-2xl font-bold text-primary">
+            <p className="text-xs text-muted-foreground">Saldo IMCH</p>
+            <p className="text-xl font-bold text-primary">
+              {(profile?.coins || 0).toLocaleString()}
+            </p>
+            <p className="text-[10px] text-muted-foreground">
+              ≈ ${((profile?.coins || 0) * IMCH_TO_USD).toFixed(2)}
+            </p>
+          </div>
+          <div className="bg-card/50 backdrop-blur border border-border rounded-lg p-4">
+            <p className="text-xs text-muted-foreground">Saldo Deriv</p>
+            <p className="text-xl font-bold text-green-500">
+              ${derivBalance.toFixed(2)}
+            </p>
+            <p className="text-[10px] text-muted-foreground">USD</p>
+          </div>
+          <div className="bg-card/50 backdrop-blur border border-border rounded-lg p-4">
+            <p className="text-xs text-muted-foreground">Blocos</p>
+            <p className="text-xl font-bold text-foreground">
               {blockchainBlocks.length}
             </p>
           </div>
           <div className="bg-card/50 backdrop-blur border border-border rounded-lg p-4">
-            <p className="text-sm text-muted-foreground">Transações Deriv</p>
-            <p className="text-2xl font-bold text-green-500">
+            <p className="text-xs text-muted-foreground">Transações</p>
+            <p className="text-xl font-bold text-foreground">
               {transactions.length}
             </p>
           </div>
           <div className="bg-card/50 backdrop-blur border border-border rounded-lg p-4">
-            <p className="text-sm text-muted-foreground">Volume Total (IMCH)</p>
-            <p className="text-2xl font-bold">
-              {transactions
-                .reduce((acc, tx) => acc + tx.amount_imch, 0)
-                .toLocaleString()}
+            <p className="text-xs text-muted-foreground">Volume IMCH</p>
+            <p className="text-xl font-bold text-foreground">
+              {totalVolumeImch.toLocaleString()}
             </p>
           </div>
         </div>
