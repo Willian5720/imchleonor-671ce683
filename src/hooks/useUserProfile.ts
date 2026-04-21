@@ -28,13 +28,17 @@ export interface UserTransfer {
 }
 
 export function useUserProfile() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchProfile = useCallback(async () => {
+    // Wait for auth to finish restoring session before deciding
+    if (authLoading) return;
+
     if (!user?.id) {
+      setProfile(null);
       setLoading(false);
       return;
     }
@@ -57,7 +61,7 @@ export function useUserProfile() {
     } finally {
       setLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, authLoading]);
 
   useEffect(() => {
     fetchProfile();
@@ -101,7 +105,7 @@ export function useUserProfile() {
 
   return {
     profile,
-    loading,
+    loading: authLoading || loading,
     error,
     updateProfile,
     refetch: fetchProfile,
