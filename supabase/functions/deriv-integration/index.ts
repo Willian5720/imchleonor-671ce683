@@ -84,16 +84,24 @@ serve(async (req) => {
     // Handle actions that DON'T require Deriv WebSocket connection
     switch (action) {
       case 'get_accounts': {
-        // Return simulated/cached balance - no WebSocket needed
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('coins')
-          .eq('id', user.id)
-          .single();
-        
+        // Real Deriv USD balance = completed deposits - completed withdrawals
+        const { data: derivTxs } = await supabase
+          .from('deriv_transactions')
+          .select('transaction_type, amount_usd, status')
+          .eq('user_id', user.id)
+          .eq('status', 'completed');
+
+        const deposited = (derivTxs || [])
+          .filter((t) => t.transaction_type === 'deposit')
+          .reduce((acc, t) => acc + Number(t.amount_usd), 0);
+        const withdrawn = (derivTxs || [])
+          .filter((t) => t.transaction_type === 'withdrawal')
+          .reduce((acc, t) => acc + Number(t.amount_usd), 0);
+        const balance = Math.max(0, deposited - withdrawn);
+
         return new Response(JSON.stringify({
           success: true,
-          balance: (profile?.coins || 0) * IMCH_TO_USD_RATE,
+          balance,
           currency: 'USD',
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
