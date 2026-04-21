@@ -113,13 +113,15 @@ export function useUserProfile() {
 }
 
 export function useUserTransfers() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [transfers, setTransfers] = useState<UserTransfer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchTransfers = useCallback(async () => {
+    if (authLoading) return;
     if (!user?.id) {
+      setTransfers([]);
       setLoading(false);
       return;
     }
@@ -143,7 +145,7 @@ export function useUserTransfers() {
     } finally {
       setLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, authLoading]);
 
   useEffect(() => {
     fetchTransfers();
