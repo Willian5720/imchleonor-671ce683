@@ -15,6 +15,9 @@ import Blockchain from "./pages/Blockchain";
 import AdminAudit from "./pages/AdminAudit";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import HelpPage from "./pages/HelpPage";
+import TermsPage from "./pages/TermsPage";
+import PrivacyPage from "./pages/PrivacyPage";
 import { AdminRoute } from "./components/AdminRoute";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -35,6 +38,9 @@ const App = () => (
             <Route path="/send" element={<SendPage />} />
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/help" element={<HelpPage />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
             <Route
               path="/blockchain"
               element={
