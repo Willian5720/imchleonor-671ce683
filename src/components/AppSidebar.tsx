@@ -44,9 +44,9 @@ export function AppSidebar() {
   ] : [];
 
   const infoItems = [
-    { title: 'Central de Ajuda', url: '#', icon: HelpCircle },
-    { title: 'Termos de Uso', url: '#', icon: FileText },
-    { title: 'Privacidade', url: '#', icon: Lock },
+    { title: 'Central de Ajuda', url: '/help', icon: HelpCircle },
+    { title: 'Termos de Uso', url: '/terms', icon: FileText },
+    { title: 'Privacidade', url: '/privacy', icon: Lock },
   ];
 
   const getInitials = () => {
