@@ -8,11 +8,13 @@ import { TwoFactorAuth } from '@/components/profile/TwoFactorAuth';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuditLog } from '@/hooks/useAuditLog';
 import { useTheme } from '@/hooks/useTheme';
+import { useNavigate } from 'react-router-dom';
 
 export default function SettingsPage() {
   const { signOut } = useAuth();
   const { logAction } = useAuditLog();
   const { isDark, toggleTheme } = useTheme();
+  const navigate = useNavigate();
 
   const handleSignOut = async () => {
     await logAction('logout', 'auth');
@@ -73,9 +75,9 @@ export default function SettingsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button variant="outline" className="w-full justify-start">Central de Ajuda</Button>
-              <Button variant="outline" className="w-full justify-start">Termos de Uso</Button>
-              <Button variant="outline" className="w-full justify-start">Política de Privacidade</Button>
+              <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/help')}>Central de Ajuda</Button>
+              <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/terms')}>Termos de Uso</Button>
+              <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/privacy')}>Política de Privacidade</Button>
             </CardContent>
           </Card>
 
