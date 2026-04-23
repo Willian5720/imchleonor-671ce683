@@ -13,8 +13,8 @@ type Slot = 'selfie' | 'bi_front' | 'bi_back';
 
 const SLOT_META: Record<Slot, { label: string; hint: string; useCamera: boolean }> = {
   selfie:   { label: 'Foto do Rosto (Selfie)', hint: 'Foto nítida do seu rosto, sem óculos escuros ou chapéu.', useCamera: true },
-  bi_front: { label: 'BI — Frente',           hint: 'Lado da frente do seu Bilhete de Identidade angolano.',     useCamera: false },
-  bi_back:  { label: 'BI — Verso',            hint: 'Lado de trás do seu Bilhete de Identidade angolano.',       useCamera: false },
+  bi_front: { label: 'Documento — Frente',    hint: 'Lado da frente do seu documento de identidade.',           useCamera: false },
+  bi_back:  { label: 'Documento — Verso',     hint: 'Lado de trás do seu documento de identidade.',             useCamera: false },
 };
 
 export function KycVerification() {
@@ -95,7 +95,7 @@ export function KycVerification() {
 
       const kycData = {
         user_id: user.id,
-        status: verified ? 'verified' : 'rejected',
+        status: verified ? 'approved' : 'rejected',
         document_type: 'bilhete_identidade',
         document_number: extracted.document_number || null,
         full_name: extracted.full_name || null,
@@ -180,7 +180,7 @@ export function KycVerification() {
               <p className="text-xs text-muted-foreground">
                 {isRejected
                   ? (kyc?.rejection_reason || 'Envie novamente as suas fotos.')
-                  : 'Envie uma selfie e as duas faces do seu BI angolano para verificar.'}
+                  : 'Envie uma selfie e as duas faces do seu documento de identidade para verificar.'}
               </p>
             </div>
             <Button size="sm" onClick={() => setDialogOpen(true)}>
@@ -195,13 +195,13 @@ export function KycVerification() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ShieldCheck className="w-5 h-5 text-primary" />
-              Verificação de Identidade (Angola)
+              Verificação de Identidade
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             <p className="text-sm text-muted-foreground">
-              Envie as <strong>3 fotos</strong> abaixo. A verificação só é aprovada se a selfie corresponder ao rosto do seu Bilhete de Identidade angolano.
+              Envie as <strong>3 fotos</strong> abaixo. A verificação só é aprovada se a selfie corresponder ao rosto no seu documento de identidade.
             </p>
 
             {(['selfie', 'bi_front', 'bi_back'] as Slot[]).map((slot) => {
