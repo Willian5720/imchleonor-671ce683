@@ -13,6 +13,7 @@ import HistoryPage from "./pages/HistoryPage";
 import SettingsPage from "./pages/SettingsPage";
 import Blockchain from "./pages/Blockchain";
 import AdminAudit from "./pages/AdminAudit";
+import AdminKycDuplicates from "./pages/AdminKycDuplicates";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import HelpPage from "./pages/HelpPage";
@@ -62,6 +63,14 @@ const App = () => (
               element={
                 <AdminRoute>
                   <AdminAudit />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/kyc-duplicates"
+              element={
+                <AdminRoute>
+                  <AdminKycDuplicates />
                 </AdminRoute>
               }
             />
