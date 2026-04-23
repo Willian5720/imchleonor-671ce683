@@ -8,6 +8,7 @@ import { useKycStatus } from '@/hooks/useKycStatus';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { validateImageFile } from '@/lib/imageValidation';
 
 type Slot = 'selfie' | 'bi_front' | 'bi_back';
 
@@ -35,13 +36,24 @@ export function KycVerification() {
     bi_back: useRef<HTMLInputElement>(null),
   };
 
-  const handleFileSelect = (slot: Slot) => (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (slot: Slot) => async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    if (inputRefs[slot].current) inputRefs[slot].current!.value = '';
     if (!file) return;
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error('Ficheiro muito grande. Máximo: 10MB');
+
+    // Selfies podem ter resolução um pouco menor do que documentos
+    const isSelfie = slot === 'selfie';
+    const result = await validateImageFile(file, {
+      minWidth: isSelfie ? 360 : 600,
+      minHeight: isSelfie ? 360 : 400,
+      minSharpness: isSelfie ? 50 : 80,
+    });
+
+    if (!result.ok) {
+      toast.error(result.error || 'Imagem inválida.');
       return;
     }
+
     setFiles((prev) => ({ ...prev, [slot]: file }));
     const reader = new FileReader();
     reader.onload = (ev) => {
