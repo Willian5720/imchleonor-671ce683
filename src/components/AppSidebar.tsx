@@ -1,4 +1,4 @@
-import { User, LogOut, Coins, Clock, Settings, Shield, Wallet, FileText, Lock, HelpCircle, Boxes, Gamepad2, Send, Home } from 'lucide-react';
+import { User, LogOut, Coins, Clock, Settings, Shield, Wallet, FileText, Lock, HelpCircle, Boxes, Gamepad2, Send, Home, FileWarning } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -41,6 +41,7 @@ export function AppSidebar() {
     { title: 'Blockchain', url: '/blockchain', icon: Boxes },
     { title: 'IMCHLEONOR', url: '/game', icon: Gamepad2 },
     { title: 'Auditoria', url: '/admin/audit', icon: Shield },
+    { title: 'KYC Duplicados', url: '/admin/kyc-duplicates', icon: FileWarning },
   ] : [];
 
   const infoItems = [
