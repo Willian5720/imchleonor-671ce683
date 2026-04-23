@@ -166,14 +166,52 @@ If any validation fails, set "rejection_reason" with a short explanation in Port
     }
 
     const valid = !!(parsed.is_selfie && parsed.is_angolan_bi_front && parsed.is_angolan_bi_back && parsed.face_match);
-    const rejection_reason = valid
+    let rejection_reason = valid
       ? null
       : (parsed.rejection_reason
         || 'Validação falhou. Garanta que enviou uma selfie nítida e as duas faces do seu BI angolano.');
 
+    // --- DUPLICATE DOCUMENT DETECTION (real-time) ---
+    // If the document looks valid, check whether another user has already
+    // submitted/been approved with the same document number.
+    let isDuplicate = false;
+    let finalVerified = valid;
+    const documentNumber = (parsed.document_number || '').toString().trim();
+
+    if (valid && documentNumber) {
+      const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+      if (serviceKey) {
+        const adminClient = createClient(supabaseUrl, serviceKey);
+        const { data: existing, error: dupErr } = await adminClient
+          .from('kyc_verifications')
+          .select('user_id, status')
+          .eq('document_number', documentNumber)
+          .neq('user_id', user.id)
+          .in('status', ['approved', 'pending']);
+
+        if (!dupErr && existing && existing.length > 0) {
+          isDuplicate = true;
+          finalVerified = false;
+          rejection_reason = 'Este documento de identidade já está associado a outra conta. Cada documento só pode ser usado por um único utilizador.';
+
+          // Log security event for fraud monitoring
+          await adminClient.from('security_events').insert({
+            user_id: user.id,
+            event_type: 'kyc_duplicate_document_attempt',
+            risk_level: 'high',
+            details: {
+              attempted_document_number: documentNumber,
+              conflicting_user_ids: existing.map((e) => e.user_id),
+            },
+          });
+        }
+      }
+    }
+
     return new Response(JSON.stringify({
-      verified: valid,
+      verified: finalVerified,
       rejection_reason,
+      duplicate: isDuplicate,
       data: {
         full_name: parsed.full_name ?? null,
         document_number: parsed.document_number ?? null,
