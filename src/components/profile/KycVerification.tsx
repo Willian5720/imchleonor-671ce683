@@ -120,10 +120,24 @@ export function KycVerification() {
 
       if (hasSubmitted) {
         const { error } = await supabase.from('kyc_verifications').update(kycData).eq('user_id', user.id);
-        if (error) throw error;
+        if (error) {
+          if (error.code === '23505') {
+            toast.error('Este documento já está associado a outra conta.');
+            refetch();
+            return;
+          }
+          throw error;
+        }
       } else {
         const { error } = await supabase.from('kyc_verifications').insert(kycData);
-        if (error) throw error;
+        if (error) {
+          if (error.code === '23505') {
+            toast.error('Este documento já está associado a outra conta.');
+            refetch();
+            return;
+          }
+          throw error;
+        }
       }
 
       if (verified) {
@@ -132,7 +146,11 @@ export function KycVerification() {
         setFiles({ selfie: null, bi_front: null, bi_back: null });
         setPreviews({ selfie: null, bi_front: null, bi_back: null });
       } else {
-        toast.error(rejectionReason || 'Verificação rejeitada. Tente novamente com fotos melhores.');
+        if (result?.duplicate) {
+          toast.error(rejectionReason || 'Este documento já está em uso.', { duration: 6000 });
+        } else {
+          toast.error(rejectionReason || 'Verificação rejeitada. Tente novamente com fotos melhores.');
+        }
       }
       refetch();
     } catch (error) {
