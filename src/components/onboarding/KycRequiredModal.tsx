@@ -24,7 +24,7 @@ export function KycRequiredModal({ open, onClose, blocking = false }: KycRequire
           </div>
           <DialogTitle className="text-center">Verifique a sua identidade</DialogTitle>
           <DialogDescription className="text-center">
-            Para validar transações na plataforma, precisamos confirmar o seu Bilhete de Identidade angolano e uma selfie.
+            Para validar transações na plataforma, precisamos confirmar o seu documento de identidade e uma selfie.
           </DialogDescription>
         </DialogHeader>
 
