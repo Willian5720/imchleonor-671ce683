@@ -56,6 +56,34 @@ serve(async (req) => {
 
   try {
     const { messages } = await req.json();
+
+    // Input validation: prevent prompt injection / token abuse
+    if (!Array.isArray(messages) || messages.length === 0 || messages.length > 20) {
+      return new Response(
+        JSON.stringify({ error: "Mensagens inválidas (limite de 20 turnos)." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+    const safeMessages: Array<{ role: "user" | "assistant"; content: string }> = [];
+    for (const m of messages) {
+      if (!m || typeof m !== "object") {
+        return new Response(JSON.stringify({ error: "Formato de mensagem inválido." }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (m.role !== "user" && m.role !== "assistant") {
+        return new Response(JSON.stringify({ error: "Função de mensagem não permitida." }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (typeof m.content !== "string" || m.content.length === 0 || m.content.length > 2000) {
+        return new Response(JSON.stringify({ error: "Conteúdo da mensagem inválido (máx 2000 caracteres)." }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      safeMessages.push({ role: m.role, content: m.content });
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY não configurado");
 
@@ -69,7 +97,7 @@ serve(async (req) => {
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
-          ...messages,
+          ...safeMessages,
         ],
         stream: true,
       }),
