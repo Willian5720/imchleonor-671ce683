@@ -34,6 +34,7 @@ const Auth = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -232,6 +233,31 @@ const Auth = () => {
     }
   };
 
+  const handleAppleSignIn = async () => {
+    setAppleLoading(true);
+    try {
+      const { error } = await lovable.auth.signInWithOAuth("apple", {
+        redirect_uri: window.location.origin,
+      });
+      
+      if (error) {
+        toast({
+          title: "Erro no Login com Apple",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+    } catch {
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao fazer login com Apple.",
+        variant: "destructive",
+      });
+    } finally {
+      setAppleLoading(false);
+    }
+  };
+
   const handle2FASuccess = () => {
     navigate('/', { replace: true });
   };
@@ -411,7 +437,7 @@ const Auth = () => {
               variant="outline"
               className="w-full border-border hover:bg-accent"
               onClick={handleGoogleSignIn}
-              disabled={loading || googleLoading}
+              disabled={loading || googleLoading || appleLoading}
             >
               {googleLoading ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -438,6 +464,24 @@ const Auth = () => {
               {googleLoading ? 'Conectando...' : 'Continuar com Google'}
             </Button>
 
+            {/* Apple Sign In */}
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full border-border hover:bg-accent mt-3"
+              onClick={handleAppleSignIn}
+              disabled={loading || googleLoading || appleLoading}
+            >
+              {appleLoading ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.06 1.87-2.54 5.98.22 7.13-.57 1.5-1.31 2.99-2.27 4.08zm-5.85-15.1c.07-2.04 1.76-3.79 3.74-3.94.29 2.32-2.05 4.48-3.74 3.94z"/>
+                </svg>
+              )}
+              {appleLoading ? 'Conectando...' : 'Continuar com Apple'}
+            </Button>
+
             {/* Toggle between login/signup */}
             <div className="mt-6 text-center">
               <p className="text-muted-foreground text-sm">
@@ -447,7 +491,7 @@ const Auth = () => {
                 variant="link"
                 onClick={toggleMode}
                 className="text-primary hover:text-primary/80 p-0 h-auto font-medium"
-                disabled={loading || googleLoading}
+                disabled={loading || googleLoading || appleLoading}
               >
                 {isSignUp ? 'Fazer login' : 'Criar conta'}
               </Button>
