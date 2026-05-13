@@ -25,6 +25,14 @@ export function useOnboarding() {
     const tourDone = localStorage.getItem(tourKey) === '1';
     const kycPromptedThisSession = sessionStorage.getItem(kycPromptKey) === '1';
 
+    // Once verified: ensure the modal is closed and never re-prompt this session.
+    if (isVerified) {
+      if (showKycModal) setShowKycModal(false);
+      sessionStorage.setItem(kycPromptKey, '1');
+      if (!tourDone) setShowTour(true);
+      return;
+    }
+
     // Step 1: KYC mandatory popup — show until user is verified.
     // Show once per session if not verified (avoid spamming on each route change).
     if (!isVerified && !kycPromptedThisSession) {
@@ -32,12 +40,7 @@ export function useOnboarding() {
       sessionStorage.setItem(kycPromptKey, '1');
       return;
     }
-
-    // Step 2: After KYC verified, run the tour once.
-    if (isVerified && !tourDone) {
-      setShowTour(true);
-    }
-  }, [authLoading, kycLoading, user?.id, isVerified, hasSubmitted, tourKey, kycPromptKey]);
+  }, [authLoading, kycLoading, user?.id, isVerified, hasSubmitted, tourKey, kycPromptKey, showKycModal]);
 
   const closeKycModal = () => setShowKycModal(false);
 
