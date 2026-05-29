@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CryptoTicker } from '@/components/crypto/CryptoTicker';
 import { ExchangeAvatarsRow } from '@/components/profile/ExchangeAvatarsRow';
+import { PlatformMessages } from '@/components/PlatformMessages';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -44,6 +45,8 @@ export default function Exchange() {
       <CryptoTicker />
 
       <div className="p-4 pb-8 max-w-4xl mx-auto space-y-6">
+
+        <PlatformMessages />
 
         {/* User Profile Header */}
         <div className="flex items-center justify-between gap-3 flex-wrap" data-tour="profile-header">
