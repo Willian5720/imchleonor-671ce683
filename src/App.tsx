@@ -15,6 +15,7 @@ import Blockchain from "./pages/Blockchain";
 import AdminAudit from "./pages/AdminAudit";
 import AdminKycDuplicates from "./pages/AdminKycDuplicates";
 import Auth from "./pages/Auth";
+import TradingBot from "./pages/TradingBot";
 import NotFound from "./pages/NotFound";
 import HelpPage from "./pages/HelpPage";
 import TermsPage from "./pages/TermsPage";
@@ -40,6 +41,7 @@ const App = () => (
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/help" element={<HelpPage />} />
+            <Route path="/bot" element={<TradingBot />} />
             <Route path="/terms" element={<TermsPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route

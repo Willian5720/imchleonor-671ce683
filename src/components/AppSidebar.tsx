@@ -1,4 +1,4 @@
-import { User, LogOut, Coins, Clock, Settings, Shield, Wallet, FileText, Lock, HelpCircle, Boxes, Gamepad2, Send, Home, FileWarning } from 'lucide-react';
+import { User, LogOut, Coins, Clock, Settings, Shield, Wallet, FileText, Lock, HelpCircle, Boxes, Gamepad2, Send, Home, FileWarning, Cpu } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -31,6 +31,7 @@ export function AppSidebar() {
     { title: 'Carteira', url: '/wallet', icon: Wallet, tour: 'sidebar-wallet' },
     { title: 'Enviar', url: '/send', icon: Send, tour: 'sidebar-send' },
     { title: 'Histórico', url: '/history', icon: Clock, tour: 'sidebar-history' },
+    { title: 'Bot de Trading', url: '/bot', icon: Cpu },
   ];
 
   const settingsItems = [
