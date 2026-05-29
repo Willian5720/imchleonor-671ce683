@@ -13,7 +13,7 @@ export function usePlatformMessages() {
   return useQuery({
     queryKey: ['platform-messages'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('platform_messages')
         .select('*')
         .eq('is_active', true)
