@@ -41,6 +41,7 @@ export function AppSidebar() {
   const adminItems = isAdmin ? [
     { title: 'Blockchain', url: '/blockchain', icon: Boxes },
     { title: 'IMCHLEONOR', url: '/game', icon: Gamepad2 },
+    { title: 'Bot de Trading', url: '/bot', icon: Cpu },
     { title: 'Auditoria', url: '/admin/audit', icon: Shield },
     { title: 'KYC Duplicados', url: '/admin/kyc-duplicates', icon: FileWarning },
   ] : [];
