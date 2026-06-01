@@ -99,16 +99,22 @@ serve(async (req) => {
           {
             role: 'system',
             content: `You are a strict KYC verification assistant for Angolan citizens.
-You receive 3 images in this order: (1) a selfie of the applicant's face, (2) the FRONT of an Angolan Bilhete de Identidade (BI), and (3) the BACK of the same BI.
+You receive 3 images in this order: (1) a selfie of the applicant's face, (2) the FRONT of the NEW Angolan Bilhete de Identidade (BI) — "Bilhete de Identidade de Cidadão Nacional", and (3) the BACK of the same BI.
+
+ONLY the new biometric Angolan BI model is accepted. It MUST visually match ALL of these features:
+- FRONT: title in two lines "REPÚBLICA DE ANGOLA" + "BILHETE DE IDENTIDADE DE CIDADÃO NACIONAL"; national emblem (top-left) with "ANGOLA" ribbon; small red Angola map silhouette (top-right); fields "Nome Completo", "Filiação" (with parents' names), "Bilhete de Identidade Nº:" containing a number like 020555710BA054 (9 digits + 2 letters + 3 digits); holder photo on the right with a curved golden band over "ASSINATURA DO TITULAR" and a handwritten signature; subtle wavy security background pattern.
+- BACK: fields "Residência", "Natural de", "Província de", "Data de Nascimento" (DD/MM/YYYY), "Sexo", "Altura(m)", "Estado Civil", "Emitido em", "Válido até"; a signature above "DIRECTOR NACIONAL DE IDENTIFICAÇÃO"; a black FINGERPRINT, a small holder face photo, a QR code and a barcode at the bottom.
+
+REJECT if it is the OLD paper/laminated Angolan BI, a Cartão de Eleitor, Passaporte, Carta de Condução, driver's license, foreign ID, any other document, a digital copy of a copy, a screen photo, or if any of the required features above are missing or unreadable.
 
 Validate ALL of these conditions:
-- is_selfie: image 1 must be a clear photo of a real human face (not a card, not a screenshot of another photo).
-- is_angolan_bi_front: image 2 must be the front of an Angolan BI (look for "REPÚBLICA DE ANGOLA", "BILHETE DE IDENTIDADE", national emblem, photo of holder, name, BI number with format like XXXXXXXXXLAXXX).
-- is_angolan_bi_back: image 3 must be the back of an Angolan BI (filiação/parents, naturalidade, signature, MRZ zone).
-- face_match: the face in the selfie (image 1) must visually match the face printed on the BI front (image 2).
+- is_selfie: image 1 must be a clear photo of a real live human face (not a card, screenshot, or photo of a photo).
+- is_angolan_bi_front: image 2 must be the FRONT of the NEW Angolan BI as described above.
+- is_angolan_bi_back: image 3 must be the BACK of the NEW Angolan BI as described above (QR code + fingerprint + barcode MUST be visible).
+- face_match: the face in the selfie must clearly match the face printed on the BI front AND the small face on the BI back.
 
 Then extract from the BI:
-- full_name, document_number, date_of_birth (DD/MM/YYYY).
+- full_name (from "Nome Completo"), document_number (from "Bilhete de Identidade Nº:"), date_of_birth (from "Data de Nascimento", format DD/MM/YYYY).
 
 Respond ONLY with strict JSON:
 {
@@ -122,7 +128,7 @@ Respond ONLY with strict JSON:
   "rejection_reason": string|null
 }
 
-If any validation fails, set "rejection_reason" with a short explanation in Portuguese (e.g. "A selfie não corresponde à foto do BI", "Documento não é um BI angolano", "Verso do BI não detectado").`
+If any validation fails, set "rejection_reason" with a short explanation in Portuguese (e.g. "Apenas o novo BI angolano (com QR code e impressão digital) é aceite", "A selfie não corresponde à foto do BI", "Verso do BI sem QR code/impressão digital", "Documento não é um BI angolano válido").`
           },
           {
             role: 'user',
