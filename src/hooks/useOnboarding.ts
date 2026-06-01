@@ -26,10 +26,11 @@ export function useOnboarding() {
     const kycPromptedThisSession = sessionStorage.getItem(kycPromptKey) === '1';
 
     // Once verified: ensure the modal is closed and never re-prompt this session.
+    // Verified users are NOT new users — skip the tour entirely and mark it done.
     if (isVerified) {
       if (showKycModal) setShowKycModal(false);
       sessionStorage.setItem(kycPromptKey, '1');
-      if (!tourDone) setShowTour(true);
+      if (!tourDone) localStorage.setItem(tourKey, '1');
       return;
     }
 
