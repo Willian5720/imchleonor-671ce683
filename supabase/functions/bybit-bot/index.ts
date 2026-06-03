@@ -197,6 +197,43 @@ serve(async (req) => {
 
     // ===== STATUS (legacy compat) =====
     if (action === 'status') {
+      // (kept below)
+    }
+
+    // ===== EQUITY CHART =====
+    if (action === 'equity_chart') {
+      const period = body.period ?? '30d';
+      const since = sinceFor(period);
+      const orders = await exchange.fetchClosedOrders(undefined, since, 200);
+      // Build cumulative pnl over time (per symbol pair buy/sell offsets)
+      const sorted = [...orders].sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
+      const points: { time: number; equity: number }[] = [];
+      let cum = 0;
+      for (const o of sorted) {
+        if (o.status !== 'closed' && o.status !== 'filled') continue;
+        const cost = Number(o.cost ?? (o.price ?? 0) * (o.filled ?? o.amount ?? 0)) || 0;
+        cum += o.side === 'sell' ? cost : -cost;
+        points.push({ time: o.timestamp ?? Date.now(), equity: cum });
+      }
+      // BTC & ETH comparison series
+      const tf = period === '24h' ? '1h' : period === '7d' ? '4h' : '1d';
+      let btc: number[][] = [], eth: number[][] = [];
+      try { btc = await exchange.fetchOHLCV('BTC/USDT', tf, since, 200); } catch (_) {}
+      try { eth = await exchange.fetchOHLCV('ETH/USDT', tf, since, 200); } catch (_) {}
+      const series = (arr: number[][]) => {
+        if (!arr.length) return [];
+        const base = arr[0][4];
+        return arr.map((c) => ({ time: c[0], change: ((c[4] - base) / base) * 100 }));
+      };
+      return json({
+        success: true,
+        equity: points,
+        btc: series(btc),
+        eth: series(eth),
+      });
+    }
+
+    if (action === 'status') {
       const balance = await exchange.fetchBalance();
       const usdtBalance = balance.USDT?.free || 0;
       const orders = await exchange.fetchClosedOrders(undefined, undefined, 10);
