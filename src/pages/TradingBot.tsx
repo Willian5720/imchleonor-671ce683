@@ -9,9 +9,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { EquityChart } from '@/components/bot/EquityChart';
+import { ActivePositions } from '@/components/bot/ActivePositions';
+import { HistoryPanel } from '@/components/bot/HistoryPanel';
 
 interface Dashboard {
   totalBalance: number;
@@ -206,6 +210,15 @@ export default function TradingBot() {
         )}
 
         {/* Top financial metrics */}
+        <Tabs defaultValue="overview" className="space-y-4">
+          <TabsList className="grid grid-cols-4 w-full sm:w-auto">
+            <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+            <TabsTrigger value="charts">Gráficos</TabsTrigger>
+            <TabsTrigger value="positions">Posições</TabsTrigger>
+            <TabsTrigger value="history">Histórico</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="space-y-4 mt-2">
         {loading ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-24" />)}
@@ -315,6 +328,20 @@ export default function TradingBot() {
             </CardContent>
           </Card>
         </div>
+          </TabsContent>
+
+          <TabsContent value="charts" className="mt-2">
+            <EquityChart />
+          </TabsContent>
+
+          <TabsContent value="positions" className="mt-2">
+            <ActivePositions />
+          </TabsContent>
+
+          <TabsContent value="history" className="mt-2">
+            <HistoryPanel />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
