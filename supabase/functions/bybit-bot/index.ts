@@ -195,11 +195,6 @@ serve(async (req) => {
       });
     }
 
-    // ===== STATUS (legacy compat) =====
-    if (action === 'status') {
-      // (kept below)
-    }
-
     // ===== EQUITY CHART =====
     if (action === 'equity_chart') {
       const period = body.period ?? '30d';
