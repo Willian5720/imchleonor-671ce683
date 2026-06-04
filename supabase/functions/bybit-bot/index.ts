@@ -1,13 +1,10 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 import ccxt from 'npm:ccxt';
 
-// ---------- helpers ----------
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  });
+const json = (b: unknown, s = 200) =>
+  new Response(JSON.stringify(b), { status: s, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
 function getExchange() {
   const apiKey = Deno.env.get('BYBIT_API_KEY');
@@ -16,192 +13,236 @@ function getExchange() {
   return new ccxt.bybit({ apiKey, secret, enableRateLimit: true, options: { defaultType: 'unified' } });
 }
 
-function sinceFor(period: string): number | undefined {
-  const now = Date.now();
-  const map: Record<string, number> = {
-    '24h': 24 * 3600e3,
-    '7d': 7 * 86400e3,
-    '30d': 30 * 86400e3,
-    '90d': 90 * 86400e3,
-    '1y': 365 * 86400e3,
-  };
-  return map[period] ? now - map[period] : undefined;
+const admin = createClient(
+  Deno.env.get('SUPABASE_URL')!,
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+);
+
+async function getUserId(req: Request): Promise<string | null> {
+  const auth = req.headers.get('Authorization');
+  if (!auth) return null;
+  const userClient = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_ANON_KEY')!,
+    { global: { headers: { Authorization: auth } } },
+  );
+  const { data } = await userClient.auth.getUser();
+  return data.user?.id ?? null;
 }
 
-// Compute aggregate P&L from closed orders (sum of (sell - buy) per symbol pair is complex;
-// we approximate using order "info.execValue" / "cost" deltas when available).
+async function logBot(userId: string | null, type: string, emoji: string, message: string, details: any = {}) {
+  try {
+    await admin.from('bot_logs').insert({ user_id: userId, type, emoji, message, details });
+  } catch (_) {}
+}
+
+async function notify(userId: string, title: string, body: string, severity = 'info') {
+  try {
+    await admin.from('bot_notifications').insert({ user_id: userId, title, body, severity });
+  } catch (_) {}
+}
+
+function sinceFor(p: string): number | undefined {
+  const m: Record<string, number> = { '24h': 864e5, '7d': 6048e5, '30d': 2592e6, '90d': 7776e6, '1y': 31536e6 };
+  return m[p] ? Date.now() - m[p] : undefined;
+}
+
 function computePnlFromOrders(orders: any[], sinceMs?: number) {
-  const filtered = sinceMs ? orders.filter((o) => (o.timestamp ?? 0) >= sinceMs) : orders;
+  const f = sinceMs ? orders.filter((o) => (o.timestamp ?? 0) >= sinceMs) : orders;
   let realized = 0;
-  const bySymbol: Record<string, { buy: number; sell: number; count: number }> = {};
-  for (const o of filtered) {
+  const bySym: Record<string, { buy: number; sell: number; count: number }> = {};
+  for (const o of f) {
     if (o.status !== 'closed' && o.status !== 'filled') continue;
     const cost = Number(o.cost ?? (o.price ?? 0) * (o.filled ?? o.amount ?? 0)) || 0;
-    const sym = o.symbol || 'UNKNOWN';
-    bySymbol[sym] ??= { buy: 0, sell: 0, count: 0 };
-    bySymbol[sym].count += 1;
-    if (o.side === 'buy') bySymbol[sym].buy += cost;
-    else if (o.side === 'sell') bySymbol[sym].sell += cost;
+    const s = o.symbol || 'UNKNOWN';
+    bySym[s] ??= { buy: 0, sell: 0, count: 0 };
+    bySym[s].count++;
+    if (o.side === 'buy') bySym[s].buy += cost;
+    else if (o.side === 'sell') bySym[s].sell += cost;
   }
-  for (const s of Object.values(bySymbol)) realized += s.sell - s.buy;
-  return { realized, bySymbol, totalTrades: filtered.length };
+  for (const v of Object.values(bySym)) realized += v.sell - v.buy;
+  return { realized, bySymbol: bySym, totalTrades: f.length };
 }
 
-// ---------- main ----------
+// ============ Indicators ============
+function ema(values: number[], period: number): number[] {
+  const k = 2 / (period + 1);
+  const out: number[] = [];
+  let prev = values[0];
+  for (let i = 0; i < values.length; i++) {
+    prev = i === 0 ? values[0] : values[i] * k + prev * (1 - k);
+    out.push(prev);
+  }
+  return out;
+}
+function sma(values: number[], period: number): number {
+  const slice = values.slice(-period);
+  return slice.reduce((a, b) => a + b, 0) / slice.length;
+}
+function rsi(values: number[], period = 14): number {
+  if (values.length < period + 1) return 50;
+  let gains = 0, losses = 0;
+  for (let i = values.length - period; i < values.length; i++) {
+    const d = values[i] - values[i - 1];
+    if (d >= 0) gains += d; else losses -= d;
+  }
+  const avgG = gains / period, avgL = losses / period;
+  if (avgL === 0) return 100;
+  const rs = avgG / avgL;
+  return 100 - 100 / (1 + rs);
+}
+function macd(values: number[]) {
+  const e12 = ema(values, 12);
+  const e26 = ema(values, 26);
+  const line = e12.map((v, i) => v - e26[i]);
+  const signal = ema(line, 9);
+  const last = line.length - 1;
+  return { macd: line[last], signal: signal[last], hist: line[last] - signal[last] };
+}
+function bollinger(values: number[], period = 20, mult = 2) {
+  const slice = values.slice(-period);
+  const mean = slice.reduce((a, b) => a + b, 0) / slice.length;
+  const variance = slice.reduce((a, b) => a + (b - mean) ** 2, 0) / slice.length;
+  const std = Math.sqrt(variance);
+  return { upper: mean + mult * std, lower: mean - mult * std, mid: mean };
+}
+
+// ============ Signal engine ============
+function generateSignal(closes: number[], settings: any): { signal: 'buy' | 'sell' | 'hold'; reasons: string[] } {
+  const reasons: string[] = [];
+  let bull = 0, bear = 0;
+  const price = closes[closes.length - 1];
+
+  if (settings.use_rsi) {
+    const r = rsi(closes);
+    if (r < 30) { bull++; reasons.push(`RSI ${r.toFixed(1)} oversold`); }
+    else if (r > 70) { bear++; reasons.push(`RSI ${r.toFixed(1)} overbought`); }
+    else reasons.push(`RSI ${r.toFixed(1)} neutral`);
+  }
+  if (settings.use_macd) {
+    const m = macd(closes);
+    if (m.hist > 0 && m.macd > m.signal) { bull++; reasons.push(`MACD bullish ${m.hist.toFixed(2)}`); }
+    else if (m.hist < 0 && m.macd < m.signal) { bear++; reasons.push(`MACD bearish ${m.hist.toFixed(2)}`); }
+  }
+  if (settings.use_ema) {
+    const e9 = ema(closes, 9), e21 = ema(closes, 21);
+    const a = e9[e9.length - 1], b = e21[e21.length - 1];
+    if (a > b && price > a) { bull++; reasons.push(`EMA9>EMA21 uptrend`); }
+    else if (a < b && price < a) { bear++; reasons.push(`EMA9<EMA21 downtrend`); }
+  }
+  if (settings.use_bollinger) {
+    const bb = bollinger(closes);
+    if (price <= bb.lower) { bull++; reasons.push(`Price at lower BB`); }
+    else if (price >= bb.upper) { bear++; reasons.push(`Price at upper BB`); }
+  }
+
+  const signal = bull >= 2 && bull > bear ? 'buy' : bear >= 2 && bear > bull ? 'sell' : 'hold';
+  return { signal, reasons };
+}
+
+const DEFAULTS = {
+  enabled: false, max_order_usdt: 10, max_pct_balance: 5, stop_loss_pct: 2, take_profit_pct: 4,
+  daily_loss_limit: 50, weekly_loss_limit: 200,
+  assets: ['BTC/USDT', 'ETH/USDT', 'SOL/USDT'], timeframe: '1h',
+  use_rsi: true, use_macd: true, use_ema: true, use_bollinger: true,
+};
+
+async function getSettings(userId: string) {
+  const { data } = await admin.from('bot_settings').select('*').eq('user_id', userId).maybeSingle();
+  return data ?? { ...DEFAULTS, user_id: userId };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
-
   try {
     const body = await req.json().catch(() => ({}));
     const action = body.action ?? 'dashboard';
+    const userId = await getUserId(req);
     const exchange = getExchange();
 
-    // ===== DASHBOARD: top metrics =====
     if (action === 'dashboard') {
       const balance = await exchange.fetchBalance();
       const usdt = balance.USDT || {};
       const totalUsdt = Number(usdt.total ?? 0);
       const freeUsdt = Number(usdt.free ?? 0);
       const usedUsdt = Number(usdt.used ?? 0);
-
-      // Try positions (works only on derivatives; spot returns [])
-      let positions: any[] = [];
-      let unrealizedPnl = 0;
+      let positions: any[] = [], unrealizedPnl = 0;
       try {
-        positions = (await exchange.fetchPositions()) || [];
-        positions = positions.filter((p) => Number(p.contracts || 0) > 0);
+        positions = ((await exchange.fetchPositions()) || []).filter((p: any) => Number(p.contracts || 0) > 0);
         unrealizedPnl = positions.reduce((s, p) => s + Number(p.unrealizedPnl || 0), 0);
-      } catch (_e) {
-        positions = [];
-      }
-
-      // Fetch up to 200 closed orders to compute period profits
+      } catch (_) {}
       let allOrders: any[] = [];
-      try {
-        allOrders = await exchange.fetchClosedOrders(undefined, undefined, 200);
-      } catch (_e) {
-        allOrders = [];
-      }
-
+      try { allOrders = await exchange.fetchClosedOrders(undefined, undefined, 200); } catch (_) {}
       const daily = computePnlFromOrders(allOrders, sinceFor('24h')).realized;
       const weekly = computePnlFromOrders(allOrders, sinceFor('7d')).realized;
       const monthly = computePnlFromOrders(allOrders, sinceFor('30d')).realized;
       const total = computePnlFromOrders(allOrders).realized;
-
-      const investedCapital = positions.reduce(
-        (s, p) => s + Number(p.initialMargin || p.notional || 0),
-        0,
-      );
+      const investedCapital = positions.reduce((s, p) => s + Number(p.initialMargin || p.notional || 0), 0);
       const roi = totalUsdt > 0 ? (total / totalUsdt) * 100 : 0;
-
       return json({
         success: true,
         data: {
-          totalBalance: totalUsdt,
-          availableBalance: freeUsdt,
-          lockedBalance: usedUsdt,
-          investedCapital,
-          dailyProfit: daily,
-          weeklyProfit: weekly,
-          monthlyProfit: monthly,
-          totalProfit: total,
-          unrealizedPnl,
-          roi,
-          apiStatus: 'connected',
-          botStatus: 'idle',
-          openPositions: positions.length,
-          lastSync: new Date().toISOString(),
+          totalBalance: totalUsdt, availableBalance: freeUsdt, lockedBalance: usedUsdt, investedCapital,
+          dailyProfit: daily, weeklyProfit: weekly, monthlyProfit: monthly, totalProfit: total,
+          unrealizedPnl, roi, apiStatus: 'connected', botStatus: 'idle',
+          openPositions: positions.length, lastSync: new Date().toISOString(),
         },
       });
     }
 
-    // ===== POSITIONS =====
     if (action === 'positions') {
       let positions: any[] = [];
-      try {
-        positions = (await exchange.fetchPositions()) || [];
-      } catch (_e) {}
-      const mapped = positions
-        .filter((p) => Number(p.contracts || 0) > 0)
-        .map((p) => ({
-          symbol: p.symbol,
-          side: p.side,
-          contracts: p.contracts,
-          notional: p.notional,
-          entryPrice: p.entryPrice,
-          markPrice: p.markPrice,
-          unrealizedPnl: p.unrealizedPnl,
-          percentage: p.percentage,
-          stopLoss: p.info?.stopLoss ?? null,
-          takeProfit: p.info?.takeProfit ?? null,
+      try { positions = (await exchange.fetchPositions()) || []; } catch (_) {}
+      return json({
+        success: true,
+        positions: positions.filter((p) => Number(p.contracts || 0) > 0).map((p: any) => ({
+          symbol: p.symbol, side: p.side, contracts: p.contracts, notional: p.notional,
+          entryPrice: p.entryPrice, markPrice: p.markPrice, unrealizedPnl: p.unrealizedPnl,
+          percentage: p.percentage, stopLoss: p.info?.stopLoss ?? null, takeProfit: p.info?.takeProfit ?? null,
           openedAt: p.timestamp ? new Date(p.timestamp).toISOString() : null,
-        }));
-      return json({ success: true, positions: mapped });
+        })),
+      });
     }
 
-    // ===== HISTORY =====
     if (action === 'history') {
       const period = body.period ?? '30d';
       const search = (body.search ?? '').toString().toUpperCase();
       const since = sinceFor(period);
       let orders = await exchange.fetchClosedOrders(undefined, since, 200);
-      if (search) orders = orders.filter((o) => (o.symbol || '').toUpperCase().includes(search));
-
-      const mapped = orders.map((o) => ({
-        id: o.id,
-        datetime: o.datetime,
-        symbol: o.symbol,
-        side: o.side,
-        type: o.type,
-        price: o.price,
-        amount: o.amount,
-        filled: o.filled,
-        cost: o.cost,
-        status: o.status,
-        fee: o.fee?.cost ?? 0,
-      }));
-      return json({ success: true, orders: mapped });
+      if (search) orders = orders.filter((o: any) => (o.symbol || '').toUpperCase().includes(search));
+      return json({
+        success: true,
+        orders: orders.map((o: any) => ({
+          id: o.id, datetime: o.datetime, symbol: o.symbol, side: o.side, type: o.type,
+          price: o.price, amount: o.amount, filled: o.filled, cost: o.cost, status: o.status, fee: o.fee?.cost ?? 0,
+        })),
+      });
     }
 
-    // ===== STATS =====
     if (action === 'stats') {
       const orders = await exchange.fetchClosedOrders(undefined, undefined, 200);
       const { bySymbol, realized, totalTrades } = computePnlFromOrders(orders);
-      const perSymbol = Object.entries(bySymbol).map(([sym, v]) => ({
-        symbol: sym,
-        pnl: v.sell - v.buy,
-        count: v.count,
-      }));
-      const positives = perSymbol.filter((s) => s.pnl > 0);
-      const negatives = perSymbol.filter((s) => s.pnl < 0);
-      const winRate = perSymbol.length ? (positives.length / perSymbol.length) * 100 : 0;
+      const perSymbol = Object.entries(bySymbol).map(([s, v]: any) => ({ symbol: s, pnl: v.sell - v.buy, count: v.count }));
+      const pos = perSymbol.filter((s) => s.pnl > 0), neg = perSymbol.filter((s) => s.pnl < 0);
+      const winRate = perSymbol.length ? (pos.length / perSymbol.length) * 100 : 0;
       const best = perSymbol.reduce((a, b) => (a.pnl > b.pnl ? a : b), { pnl: -Infinity, symbol: '-', count: 0 });
       const worst = perSymbol.reduce((a, b) => (a.pnl < b.pnl ? a : b), { pnl: Infinity, symbol: '-', count: 0 });
-      const avgProfit = perSymbol.length ? realized / perSymbol.length : 0;
-
       return json({
         success: true,
         stats: {
-          totalTrades,
-          winningTrades: positives.length,
-          losingTrades: negatives.length,
-          winRate,
-          totalPnl: realized,
-          avgProfit,
+          totalTrades, winningTrades: pos.length, losingTrades: neg.length, winRate,
+          totalPnl: realized, avgProfit: perSymbol.length ? realized / perSymbol.length : 0,
           bestTrade: best.pnl === -Infinity ? null : best,
-          worstTrade: worst.pnl === Infinity ? null : worst,
-          perSymbol,
+          worstTrade: worst.pnl === Infinity ? null : worst, perSymbol,
         },
       });
     }
 
-    // ===== EQUITY CHART =====
     if (action === 'equity_chart') {
       const period = body.period ?? '30d';
       const since = sinceFor(period);
       const orders = await exchange.fetchClosedOrders(undefined, since, 200);
-      // Build cumulative pnl over time (per symbol pair buy/sell offsets)
-      const sorted = [...orders].sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
+      const sorted = [...orders].sort((a: any, b: any) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
       const points: { time: number; equity: number }[] = [];
       let cum = 0;
       for (const o of sorted) {
@@ -210,88 +251,118 @@ serve(async (req) => {
         cum += o.side === 'sell' ? cost : -cost;
         points.push({ time: o.timestamp ?? Date.now(), equity: cum });
       }
-      // BTC & ETH comparison series
       const tf = period === '24h' ? '1h' : period === '7d' ? '4h' : '1d';
       let btc: number[][] = [], eth: number[][] = [];
       try { btc = await exchange.fetchOHLCV('BTC/USDT', tf, since, 200); } catch (_) {}
       try { eth = await exchange.fetchOHLCV('ETH/USDT', tf, since, 200); } catch (_) {}
-      const series = (arr: number[][]) => {
-        if (!arr.length) return [];
-        const base = arr[0][4];
-        return arr.map((c) => ({ time: c[0], change: ((c[4] - base) / base) * 100 }));
-      };
-      return json({
-        success: true,
-        equity: points,
-        btc: series(btc),
-        eth: series(eth),
-      });
+      const series = (arr: number[][]) => !arr.length ? [] : arr.map((c) => ({ time: c[0], change: ((c[4] - arr[0][4]) / arr[0][4]) * 100 }));
+      return json({ success: true, equity: points, btc: series(btc), eth: series(eth) });
     }
 
-    if (action === 'status') {
-      const balance = await exchange.fetchBalance();
-      const usdtBalance = balance.USDT?.free || 0;
-      const orders = await exchange.fetchClosedOrders(undefined, undefined, 10);
-      return json({
-        success: true,
-        balance: usdtBalance,
-        orders: orders.map((o) => ({
-          id: o.id,
-          symbol: o.symbol,
-          side: o.side,
-          amount: o.amount,
-          price: o.price,
-          status: o.status,
-          datetime: o.datetime,
-        })),
-      });
+    // ===== SETTINGS =====
+    if (action === 'get_settings') {
+      if (!userId) return json({ error: 'auth required' }, 401);
+      return json({ success: true, settings: await getSettings(userId) });
+    }
+    if (action === 'save_settings') {
+      if (!userId) return json({ error: 'auth required' }, 401);
+      const s = { ...DEFAULTS, ...body.settings, user_id: userId, updated_at: new Date().toISOString() };
+      const { error } = await admin.from('bot_settings').upsert(s, { onConflict: 'user_id' });
+      if (error) return json({ success: false, error: error.message }, 500);
+      await logBot(userId, 'settings', '⚙️', 'Configurações atualizadas', s);
+      return json({ success: true });
     }
 
-    // ===== ANALYZE & TRADE (simulation) =====
+    if (action === 'get_logs') {
+      if (!userId) return json({ error: 'auth required' }, 401);
+      const { data } = await admin.from('bot_logs')
+        .select('*').or(`user_id.eq.${userId},user_id.is.null`)
+        .order('created_at', { ascending: false }).limit(200);
+      return json({ success: true, logs: data ?? [] });
+    }
+
+    // ===== ANALYZE & TRADE — LIVE =====
     if (action === 'analyze_and_trade') {
+      if (!userId) return json({ error: 'auth required' }, 401);
+      const settings = await getSettings(userId);
       const logs: string[] = [];
-      logs.push('🔄 Iniciando análise de mercado na Bybit...');
+      const push = async (emoji: string, msg: string, type = 'market', details: any = {}) => {
+        logs.push(`${emoji} ${msg}`);
+        await logBot(userId, type, emoji, msg, details);
+      };
+
+      await push('🔄', 'Iniciando ciclo de análise LIVE...');
+
+      // Risk: check daily/weekly loss limits from closed orders
+      const recent = await exchange.fetchClosedOrders(undefined, sinceFor('7d'), 200);
+      const dailyPnl = computePnlFromOrders(recent, sinceFor('24h')).realized;
+      const weeklyPnl = computePnlFromOrders(recent, sinceFor('7d')).realized;
+      if (-dailyPnl >= Number(settings.daily_loss_limit)) {
+        await push('🛑', `Limite diário de perda atingido (${dailyPnl.toFixed(2)} USDT). Bot bloqueado.`, 'risk');
+        await notify(userId, 'Bot bloqueado', `Perda diária ${dailyPnl.toFixed(2)} USDT excede limite.`, 'warning');
+        return json({ success: true, logs, blocked: true });
+      }
+      if (-weeklyPnl >= Number(settings.weekly_loss_limit)) {
+        await push('🛑', `Limite semanal de perda atingido (${weeklyPnl.toFixed(2)} USDT). Bot bloqueado.`, 'risk');
+        await notify(userId, 'Bot bloqueado', `Perda semanal ${weeklyPnl.toFixed(2)} USDT excede limite.`, 'warning');
+        return json({ success: true, logs, blocked: true });
+      }
+
       await exchange.loadMarkets();
-      const symbols = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'ADA/USDT'];
       const balance = await exchange.fetchBalance();
-      const usdtBalance = balance.USDT?.free || 0;
-      logs.push(`💼 Saldo atual: ${usdtBalance} USDT`);
-      let tradeExecuted = false;
+      const usdtFree = Number(balance.USDT?.free ?? 0);
+      await push('💼', `Saldo disponível: ${usdtFree.toFixed(2)} USDT`);
 
-      for (const symbol of symbols) {
-        logs.push(`🟢 Mercado analisado: ${symbol}`);
-        const market = exchange.market(symbol);
-        if (!market?.active) {
-          logs.push(`⚠️ Mercado ${symbol} inativo. Pulando.`);
-          continue;
-        }
-        const ohlcv = await exchange.fetchOHLCV(symbol, '1h', undefined, 50);
-        if (ohlcv.length < 20) {
-          logs.push(`⚠️ Dados insuficientes para ${symbol}.`);
-          continue;
-        }
-        const closes = ohlcv.map((c) => c[4] as number);
-        const sma5 = closes.slice(-5).reduce((a, b) => a + b, 0) / 5;
-        const sma20 = closes.slice(-20).reduce((a, b) => a + b, 0) / 20;
-        const cur = closes[closes.length - 1];
+      const orderBudget = Math.min(Number(settings.max_order_usdt), usdtFree * (Number(settings.max_pct_balance) / 100));
+      if (orderBudget < 1) {
+        await push('⚠️', `Orçamento por ordem muito baixo (${orderBudget.toFixed(2)} USDT). Pulando.`, 'risk');
+        return json({ success: true, logs });
+      }
 
-        if (sma5 > sma20 && cur > sma5) {
-          logs.push(`📈 Tendência de ALTA detectada em ${symbol} (SMA5 ${sma5.toFixed(2)} > SMA20 ${sma20.toFixed(2)}).`);
-          const minCost = market.limits?.cost?.min || 5;
-          if (usdtBalance < minCost) {
-            logs.push(`⚠️ Saldo insuficiente (${usdtBalance} < ${minCost} USDT) para ${symbol}.`);
-            continue;
+      let executed = false;
+      for (const symbol of settings.assets as string[]) {
+        try {
+          const market = exchange.market(symbol);
+          if (!market?.active) { await push('⚠️', `${symbol} inativo`); continue; }
+          const ohlcv = await exchange.fetchOHLCV(symbol, settings.timeframe, undefined, 100);
+          if (ohlcv.length < 30) { await push('⚠️', `Dados insuficientes para ${symbol}`); continue; }
+          const closes = ohlcv.map((c: any) => c[4] as number);
+          const price = closes[closes.length - 1];
+          const { signal, reasons } = generateSignal(closes, settings);
+          await push(signal === 'buy' ? '📈' : signal === 'sell' ? '📉' : '➖',
+            `${symbol} @ ${price} → ${signal.toUpperCase()} | ${reasons.join(', ')}`, 'signal');
+
+          if (signal === 'buy') {
+            const minCost = market.limits?.cost?.min || 5;
+            if (orderBudget < minCost) { await push('⚠️', `${symbol}: ordem ${orderBudget.toFixed(2)} < mínimo ${minCost}`); continue; }
+            const amount = Number((orderBudget / price).toFixed(market.precision?.amount ?? 6));
+
+            // anti-duplicação
+            const open = await exchange.fetchOpenOrders(symbol).catch(() => []);
+            if (open.length) { await push('⚠️', `${symbol}: ordem aberta existente, pulando`, 'risk'); continue; }
+
+            const order = await exchange.createOrder(symbol, 'market', 'buy', amount);
+            executed = true;
+            await push('💰', `COMPRA REAL ${symbol} amount=${amount} price~${price}`, 'buy', { orderId: order.id });
+            await notify(userId, 'Ordem executada', `COMPRA ${symbol} ${amount} @ ${price}`, 'success');
+
+            // Try to attach SL/TP (best-effort)
+            try {
+              const sl = price * (1 - Number(settings.stop_loss_pct) / 100);
+              const tp = price * (1 + Number(settings.take_profit_pct) / 100);
+              await exchange.createOrder(symbol, 'market', 'sell', amount, undefined, { stopLossPrice: sl, takeProfitPrice: tp, reduceOnly: true });
+              await push('🎯', `SL=${sl.toFixed(4)} TP=${tp.toFixed(4)} configurados`, 'risk');
+            } catch (e: any) {
+              await push('⚠️', `Não foi possível anexar SL/TP automáticos: ${e.message}`, 'risk');
+            }
+            break;
           }
-          logs.push(`💰 [SIMULAÇÃO] Compra executada em ${symbol} a ${cur}`);
-          tradeExecuted = true;
-          break;
-        } else if (sma5 < sma20 && cur < sma5) {
-          logs.push(`📉 Tendência de BAIXA em ${symbol}. Sem entrada de compra.`);
-        } else {
-          logs.push(`⚠️ Padrão NEUTRO em ${symbol}.`);
+        } catch (e: any) {
+          await push('❌', `Erro em ${symbol}: ${e.message}`, 'error');
         }
       }
-      if (!tradeExecuted) logs.push('🔄 Nenhuma oportunidade favorável encontrada neste ciclo.');
+
+      if (!executed) await push('🔄', 'Nenhuma oportunidade neste ciclo');
       return json({ success: true, logs });
     }
 
