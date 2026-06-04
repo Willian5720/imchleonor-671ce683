@@ -16,6 +16,8 @@ import { cn } from '@/lib/utils';
 import { EquityChart } from '@/components/bot/EquityChart';
 import { ActivePositions } from '@/components/bot/ActivePositions';
 import { HistoryPanel } from '@/components/bot/HistoryPanel';
+import { BotSettings } from '@/components/bot/BotSettings';
+import { BotLogs } from '@/components/bot/BotLogs';
 
 interface Dashboard {
   totalBalance: number;
@@ -211,11 +213,13 @@ export default function TradingBot() {
 
         {/* Top financial metrics */}
         <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList className="grid grid-cols-4 w-full sm:w-auto">
+          <TabsList className="grid grid-cols-6 w-full sm:w-auto">
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
             <TabsTrigger value="charts">Gráficos</TabsTrigger>
             <TabsTrigger value="positions">Posições</TabsTrigger>
             <TabsTrigger value="history">Histórico</TabsTrigger>
+            <TabsTrigger value="settings">Config</TabsTrigger>
+            <TabsTrigger value="logs">Logs</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4 mt-2">
@@ -294,10 +298,10 @@ export default function TradingBot() {
                 <RefreshCw className="w-3.5 h-3.5 mr-2" />
                 Atualizar Painel
               </Button>
-              <div className="text-xs text-muted-foreground bg-primary/5 border border-primary/20 rounded-md p-3 flex gap-2">
-                <AlertCircle className="w-4 h-4 text-primary shrink-0" />
+              <div className="text-xs text-red-400 bg-red-500/5 border border-red-500/30 rounded-md p-3 flex gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>
-                  Modo SIMULAÇÃO ativo. Ordens reais serão habilitadas na próxima fase.
+                  MODO LIVE — ordens reais são enviadas para sua conta Bybit. Configure limites em "Config".
                 </span>
               </div>
             </CardContent>
@@ -340,6 +344,14 @@ export default function TradingBot() {
 
           <TabsContent value="history" className="mt-2">
             <HistoryPanel />
+          </TabsContent>
+
+          <TabsContent value="settings" className="mt-2">
+            <BotSettings />
+          </TabsContent>
+
+          <TabsContent value="logs" className="mt-2">
+            <BotLogs />
           </TabsContent>
         </Tabs>
       </div>
