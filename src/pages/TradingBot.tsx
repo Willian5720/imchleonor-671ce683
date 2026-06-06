@@ -18,6 +18,7 @@ import { ActivePositions } from '@/components/bot/ActivePositions';
 import { HistoryPanel } from '@/components/bot/HistoryPanel';
 import { BotSettings } from '@/components/bot/BotSettings';
 import { BotLogs } from '@/components/bot/BotLogs';
+import { FundingEarnPanel } from '@/components/bot/FundingEarnPanel';
 
 interface Dashboard {
   totalBalance: number;
