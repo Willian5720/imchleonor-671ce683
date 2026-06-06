@@ -34,6 +34,10 @@ interface Dashboard {
   botStatus: string;
   openPositions: number;
   lastSync: string;
+  fundingBalance?: number;
+  earnBalance?: number;
+  combinedBalance?: number;
+  earnPositions?: { coin: string; amount: number }[];
 }
 
 const fmt = (v: number, d = 2) =>
