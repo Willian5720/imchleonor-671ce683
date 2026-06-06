@@ -179,6 +179,23 @@ serve(async (req) => {
       const total = computePnlFromOrders(allOrders).realized;
       const investedCapital = positions.reduce((s, p) => s + Number(p.initialMargin || p.notional || 0), 0);
       const roi = totalUsdt > 0 ? (total / totalUsdt) * 100 : 0;
+      // === Extra balances: Funding & Earn ===
+      let fundingUsdt = 0, earnUsdt = 0;
+      const earnPositions: any[] = [];
+      try {
+        const r: any = await (exchange as any).privateGetV5AssetTransferQueryAccountCoinsBalance({
+          accountType: 'FUND', coin: 'USDT',
+        });
+        const row = r?.result?.balance?.[0] ?? r?.result?.list?.[0];
+        fundingUsdt = Number(row?.walletBalance ?? row?.transferBalance ?? 0);
+      } catch (_) {}
+      try {
+        const r: any = await (exchange as any).privateGetV5EarnPosition({ category: 'FlexibleSaving' });
+        for (const p of r?.result?.list ?? []) {
+          earnPositions.push({ coin: p.coin, amount: Number(p.amount ?? 0), category: p.category, productId: p.productId });
+          if (p.coin === 'USDT') earnUsdt += Number(p.amount ?? 0);
+        }
+      } catch (_) {}
       return json({
         success: true,
         data: {
@@ -186,8 +203,32 @@ serve(async (req) => {
           dailyProfit: daily, weeklyProfit: weekly, monthlyProfit: monthly, totalProfit: total,
           unrealizedPnl, roi, apiStatus: 'connected', botStatus: 'idle',
           openPositions: positions.length, lastSync: new Date().toISOString(),
+          fundingBalance: fundingUsdt, earnBalance: earnUsdt, earnPositions,
+          combinedBalance: totalUsdt + fundingUsdt + earnUsdt,
         },
       });
+    }
+
+    // ===== Internal transfer Funding -> Unified (or any direction) =====
+    if (action === 'transfer_internal') {
+      if (!userId) return json({ error: 'auth required' }, 401);
+      const amount = Number(body.amount);
+      const coin = (body.coin ?? 'USDT').toString().toUpperCase();
+      const from = (body.from ?? 'FUND').toString().toUpperCase(); // FUND | UNIFIED
+      const to = (body.to ?? 'UNIFIED').toString().toUpperCase();
+      if (!amount || amount <= 0) return json({ success: false, error: 'amount inválido' }, 400);
+      try {
+        const transferId = crypto.randomUUID();
+        const r: any = await (exchange as any).privatePostV5AssetTransferInterTransfer({
+          transferId, coin, amount: String(amount), fromAccountType: from, toAccountType: to,
+        });
+        await logBot(userId, 'transfer', '🔁', `Transferência ${from}→${to} ${amount} ${coin}`, r?.result ?? {});
+        await notify(userId, 'Transferência concluída', `${amount} ${coin} ${from}→${to}`, 'success');
+        return json({ success: true, result: r?.result });
+      } catch (e: any) {
+        await logBot(userId, 'error', '❌', `Falha transferência: ${e.message}`, {});
+        return json({ success: false, error: e.message }, 500);
+      }
     }
 
     if (action === 'positions') {

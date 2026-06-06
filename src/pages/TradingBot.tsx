@@ -18,6 +18,7 @@ import { ActivePositions } from '@/components/bot/ActivePositions';
 import { HistoryPanel } from '@/components/bot/HistoryPanel';
 import { BotSettings } from '@/components/bot/BotSettings';
 import { BotLogs } from '@/components/bot/BotLogs';
+import { FundingEarnPanel } from '@/components/bot/FundingEarnPanel';
 
 interface Dashboard {
   totalBalance: number;
@@ -34,6 +35,10 @@ interface Dashboard {
   botStatus: string;
   openPositions: number;
   lastSync: string;
+  fundingBalance?: number;
+  earnBalance?: number;
+  combinedBalance?: number;
+  earnPositions?: { coin: string; amount: number }[];
 }
 
 const fmt = (v: number, d = 2) =>
@@ -232,7 +237,7 @@ export default function TradingBot() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <MetricCard icon={Wallet} label="Saldo Total" tone="info"
                 value={<AnimatedNumber value={data.totalBalance} prefix="$" />}
-                sub="USDT na conta" />
+                sub="Unified (trading)" />
               <MetricCard icon={CheckCircle2} label="Disponível" tone="profit"
                 value={<AnimatedNumber value={data.availableBalance} prefix="$" />}
                 sub="Para novas ordens" />
@@ -243,6 +248,8 @@ export default function TradingBot() {
                 value={<AnimatedNumber value={data.investedCapital} prefix="$" />}
                 sub={`${data.openPositions} posições`} />
             </div>
+
+            <FundingEarnPanel data={data} onRefresh={fetchDashboard} />
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <MetricCard icon={TrendingUp} label="Lucro Diário" tone={pnlTone(data.dailyProfit)}
