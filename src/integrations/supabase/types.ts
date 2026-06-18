@@ -107,6 +107,54 @@ export type Database = {
         }
         Relationships: []
       }
+      bot_analyses: {
+        Row: {
+          created_at: string
+          estimated_amount: number | null
+          estimated_value: number | null
+          executed: boolean
+          id: string
+          order_id: string | null
+          price: number | null
+          reasons: Json | null
+          rejection_reason: string | null
+          signal: string
+          symbol: string
+          timeframe: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          estimated_amount?: number | null
+          estimated_value?: number | null
+          executed?: boolean
+          id?: string
+          order_id?: string | null
+          price?: number | null
+          reasons?: Json | null
+          rejection_reason?: string | null
+          signal: string
+          symbol: string
+          timeframe?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          estimated_amount?: number | null
+          estimated_value?: number | null
+          executed?: boolean
+          id?: string
+          order_id?: string | null
+          price?: number | null
+          reasons?: Json | null
+          rejection_reason?: string | null
+          signal?: string
+          symbol?: string
+          timeframe?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       deriv_accounts: {
         Row: {
           balance: number | null
