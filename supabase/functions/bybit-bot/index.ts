@@ -36,6 +36,29 @@ async function logBot(userId: string | null, type: string, emoji: string, messag
   } catch (_) {}
 }
 
+async function logAnalysis(userId: string | null, row: {
+  symbol: string; signal: string; price?: number; estimated_value?: number;
+  estimated_amount?: number; reasons?: string[]; executed?: boolean;
+  rejection_reason?: string | null; order_id?: string | null; timeframe?: string;
+}) {
+  if (!userId) return;
+  try {
+    await admin.from('bot_analyses').insert({
+      user_id: userId,
+      symbol: row.symbol,
+      signal: row.signal,
+      price: row.price ?? null,
+      estimated_value: row.estimated_value ?? null,
+      estimated_amount: row.estimated_amount ?? null,
+      reasons: row.reasons ?? [],
+      executed: !!row.executed,
+      rejection_reason: row.rejection_reason ?? null,
+      order_id: row.order_id ?? null,
+      timeframe: row.timeframe ?? null,
+    });
+  } catch (_) {}
+}
+
 async function notify(userId: string, title: string, body: string, severity = 'info') {
   try {
     await admin.from('bot_notifications').insert({ user_id: userId, title, body, severity });
