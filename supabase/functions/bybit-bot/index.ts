@@ -36,6 +36,29 @@ async function logBot(userId: string | null, type: string, emoji: string, messag
   } catch (_) {}
 }
 
+async function logAnalysis(userId: string | null, row: {
+  symbol: string; signal: string; price?: number; estimated_value?: number;
+  estimated_amount?: number; reasons?: string[]; executed?: boolean;
+  rejection_reason?: string | null; order_id?: string | null; timeframe?: string;
+}) {
+  if (!userId) return;
+  try {
+    await admin.from('bot_analyses').insert({
+      user_id: userId,
+      symbol: row.symbol,
+      signal: row.signal,
+      price: row.price ?? null,
+      estimated_value: row.estimated_value ?? null,
+      estimated_amount: row.estimated_amount ?? null,
+      reasons: row.reasons ?? [],
+      executed: !!row.executed,
+      rejection_reason: row.rejection_reason ?? null,
+      order_id: row.order_id ?? null,
+      timeframe: row.timeframe ?? null,
+    });
+  } catch (_) {}
+}
+
 async function notify(userId: string, title: string, body: string, severity = 'info') {
   try {
     await admin.from('bot_notifications').insert({ user_id: userId, title, body, severity });
@@ -322,6 +345,24 @@ serve(async (req) => {
       return json({ success: true, logs: data ?? [] });
     }
 
+    if (action === 'get_analyses') {
+      if (!userId) return json({ error: 'auth required' }, 401);
+      const period = (body.period ?? '7d').toString();
+      const search = (body.search ?? '').toString().toUpperCase();
+      const filter = (body.filter ?? 'all').toString(); // all|executed|rejected|buy|sell|hold
+      const since = sinceFor(period);
+      let q = admin.from('bot_analyses').select('*').eq('user_id', userId)
+        .order('created_at', { ascending: false }).limit(500);
+      if (since) q = q.gte('created_at', new Date(since).toISOString());
+      const { data } = await q;
+      let rows = data ?? [];
+      if (search) rows = rows.filter((r: any) => (r.symbol || '').toUpperCase().includes(search));
+      if (filter === 'executed') rows = rows.filter((r: any) => r.executed);
+      else if (filter === 'rejected') rows = rows.filter((r: any) => !r.executed && r.signal === 'buy');
+      else if (['buy', 'sell', 'hold'].includes(filter)) rows = rows.filter((r: any) => r.signal === filter);
+      return json({ success: true, analyses: rows });
+    }
+
     // ===== ANALYZE & TRADE — LIVE =====
     if (action === 'analyze_and_trade') {
       if (!userId) return json({ error: 'auth required' }, 401);
@@ -364,9 +405,17 @@ serve(async (req) => {
       for (const symbol of settings.assets as string[]) {
         try {
           const market = exchange.market(symbol);
-          if (!market?.active) { await push('⚠️', `${symbol} inativo`); continue; }
+          if (!market?.active) {
+            await push('⚠️', `${symbol} inativo`);
+            await logAnalysis(userId, { symbol, signal: 'hold', timeframe: settings.timeframe, rejection_reason: 'Mercado inativo' });
+            continue;
+          }
           const ohlcv = await exchange.fetchOHLCV(symbol, settings.timeframe, undefined, 100);
-          if (ohlcv.length < 30) { await push('⚠️', `Dados insuficientes para ${symbol}`); continue; }
+          if (ohlcv.length < 30) {
+            await push('⚠️', `Dados insuficientes para ${symbol}`);
+            await logAnalysis(userId, { symbol, signal: 'hold', timeframe: settings.timeframe, rejection_reason: 'Dados insuficientes' });
+            continue;
+          }
           const closes = ohlcv.map((c: any) => c[4] as number);
           const price = closes[closes.length - 1];
           const { signal, reasons } = generateSignal(closes, settings);
@@ -375,17 +424,28 @@ serve(async (req) => {
 
           if (signal === 'buy') {
             const minCost = market.limits?.cost?.min || 5;
-            if (orderBudget < minCost) { await push('⚠️', `${symbol}: ordem ${orderBudget.toFixed(2)} < mínimo ${minCost}`); continue; }
+            if (orderBudget < minCost) {
+              const reason = `Orçamento ${orderBudget.toFixed(2)} USDT abaixo do mínimo ${minCost}`;
+              await push('⚠️', `${symbol}: ${reason}`);
+              await logAnalysis(userId, { symbol, signal, price, reasons, timeframe: settings.timeframe, estimated_value: orderBudget, rejection_reason: reason });
+              continue;
+            }
             const amount = Number((orderBudget / price).toFixed(market.precision?.amount ?? 6));
 
             // anti-duplicação
             const open = await exchange.fetchOpenOrders(symbol).catch(() => []);
-            if (open.length) { await push('⚠️', `${symbol}: ordem aberta existente, pulando`, 'risk'); continue; }
+            if (open.length) {
+              const reason = 'Ordem aberta existente (anti-duplicação)';
+              await push('⚠️', `${symbol}: ${reason}`, 'risk');
+              await logAnalysis(userId, { symbol, signal, price, reasons, timeframe: settings.timeframe, estimated_value: orderBudget, estimated_amount: amount, rejection_reason: reason });
+              continue;
+            }
 
             const order = await exchange.createOrder(symbol, 'market', 'buy', amount);
             executed = true;
             await push('💰', `COMPRA REAL ${symbol} amount=${amount} price~${price}`, 'buy', { orderId: order.id });
             await notify(userId, 'Ordem executada', `COMPRA ${symbol} ${amount} @ ${price}`, 'success');
+            await logAnalysis(userId, { symbol, signal, price, reasons, timeframe: settings.timeframe, estimated_value: orderBudget, estimated_amount: amount, executed: true, order_id: String(order.id ?? '') });
 
             // Try to attach SL/TP (best-effort)
             try {
@@ -397,9 +457,17 @@ serve(async (req) => {
               await push('⚠️', `Não foi possível anexar SL/TP automáticos: ${e.message}`, 'risk');
             }
             break;
+          } else {
+            // sell or hold: log analysis (no execution)
+            await logAnalysis(userId, {
+              symbol, signal, price, reasons, timeframe: settings.timeframe,
+              estimated_value: orderBudget,
+              rejection_reason: signal === 'hold' ? 'Sinal neutro (sem oportunidade)' : 'Sinal de venda não suportado em modo spot/compra',
+            });
           }
         } catch (e: any) {
           await push('❌', `Erro em ${symbol}: ${e.message}`, 'error');
+          await logAnalysis(userId, { symbol, signal: 'error', timeframe: settings.timeframe, rejection_reason: e.message });
         }
       }
 

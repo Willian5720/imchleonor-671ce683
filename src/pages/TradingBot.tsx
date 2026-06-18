@@ -19,6 +19,7 @@ import { HistoryPanel } from '@/components/bot/HistoryPanel';
 import { BotSettings } from '@/components/bot/BotSettings';
 import { BotLogs } from '@/components/bot/BotLogs';
 import { FundingEarnPanel } from '@/components/bot/FundingEarnPanel';
+import { AnalysisHistory } from '@/components/bot/AnalysisHistory';
 
 interface Dashboard {
   totalBalance: number;
@@ -232,10 +233,11 @@ export default function TradingBot() {
 
         {/* Top financial metrics */}
         <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList className="term-tab-list grid grid-cols-3 sm:grid-cols-6 w-full h-auto p-1 gap-1">
+          <TabsList className="term-tab-list grid grid-cols-3 sm:grid-cols-7 w-full h-auto p-1 gap-1">
             <TabsTrigger value="overview" className="font-mono text-xs uppercase tracking-wider">Visão</TabsTrigger>
             <TabsTrigger value="charts" className="font-mono text-xs uppercase tracking-wider">Gráficos</TabsTrigger>
             <TabsTrigger value="positions" className="font-mono text-xs uppercase tracking-wider">Posições</TabsTrigger>
+            <TabsTrigger value="analyses" className="font-mono text-xs uppercase tracking-wider">Análises</TabsTrigger>
             <TabsTrigger value="history" className="font-mono text-xs uppercase tracking-wider">Histórico</TabsTrigger>
             <TabsTrigger value="settings" className="font-mono text-xs uppercase tracking-wider">Config</TabsTrigger>
             <TabsTrigger value="logs" className="font-mono text-xs uppercase tracking-wider">Logs</TabsTrigger>
@@ -371,6 +373,10 @@ export default function TradingBot() {
 
           <TabsContent value="history" className="mt-2">
             <HistoryPanel />
+          </TabsContent>
+
+          <TabsContent value="analyses" className="mt-2">
+            <AnalysisHistory />
           </TabsContent>
 
           <TabsContent value="settings" className="mt-2">
