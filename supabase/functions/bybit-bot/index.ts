@@ -345,6 +345,24 @@ serve(async (req) => {
       return json({ success: true, logs: data ?? [] });
     }
 
+    if (action === 'get_analyses') {
+      if (!userId) return json({ error: 'auth required' }, 401);
+      const period = (body.period ?? '7d').toString();
+      const search = (body.search ?? '').toString().toUpperCase();
+      const filter = (body.filter ?? 'all').toString(); // all|executed|rejected|buy|sell|hold
+      const since = sinceFor(period);
+      let q = admin.from('bot_analyses').select('*').eq('user_id', userId)
+        .order('created_at', { ascending: false }).limit(500);
+      if (since) q = q.gte('created_at', new Date(since).toISOString());
+      const { data } = await q;
+      let rows = data ?? [];
+      if (search) rows = rows.filter((r: any) => (r.symbol || '').toUpperCase().includes(search));
+      if (filter === 'executed') rows = rows.filter((r: any) => r.executed);
+      else if (filter === 'rejected') rows = rows.filter((r: any) => !r.executed && r.signal === 'buy');
+      else if (['buy', 'sell', 'hold'].includes(filter)) rows = rows.filter((r: any) => r.signal === filter);
+      return json({ success: true, analyses: rows });
+    }
+
     // ===== ANALYZE & TRADE — LIVE =====
     if (action === 'analyze_and_trade') {
       if (!userId) return json({ error: 'auth required' }, 401);
