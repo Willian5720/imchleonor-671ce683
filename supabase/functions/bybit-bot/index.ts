@@ -181,6 +181,8 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const action = body.action ?? 'dashboard';
     const userId = await getUserId(req);
+    // Require authentication for ALL actions — financial/portfolio data must never be public
+    if (!userId) return json({ error: 'auth required' }, 401);
     const exchange = getExchange();
 
     if (action === 'dashboard') {
