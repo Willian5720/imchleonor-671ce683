@@ -142,7 +142,13 @@ const Auth = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    toast({
+      title: 'Cadastros bloqueados',
+      description: 'O registro de novos usuários está desativado.',
+      variant: 'destructive',
+    });
+    return;
+    // eslint-disable-next-line no-unreachable
     const result = signupSchema.safeParse({ name, email, password, confirmPassword });
     if (!result.success) {
       toast({
@@ -203,8 +209,12 @@ const Auth = () => {
   };
 
   const toggleMode = () => {
-    setStep(step === 'signup' ? 'login' : 'signup');
-    resetForm();
+    // Cadastros estão temporariamente bloqueados
+    toast({
+      title: 'Cadastros bloqueados',
+      description: 'O registro de novos usuários está desativado no momento.',
+      variant: 'destructive',
+    });
   };
 
   const handleAppleSignIn = async () => {
@@ -423,19 +433,11 @@ const Auth = () => {
               {appleLoading ? 'Conectando...' : 'Continuar com Apple'}
             </Button>
 
-            {/* Toggle between login/signup */}
+            {/* Cadastros desativados */}
             <div className="mt-6 text-center">
-              <p className="text-muted-foreground text-sm">
-                {isSignUp ? 'Já tem uma conta?' : 'Não tem uma conta?'}
+              <p className="text-muted-foreground text-xs">
+                O cadastro de novos usuários está temporariamente bloqueado.
               </p>
-              <Button
-                variant="link"
-                onClick={toggleMode}
-                className="text-primary hover:text-primary/80 p-0 h-auto font-medium"
-                disabled={loading || appleLoading}
-              >
-                {isSignUp ? 'Fazer login' : 'Criar conta'}
-              </Button>
             </div>
           </>
         )}
