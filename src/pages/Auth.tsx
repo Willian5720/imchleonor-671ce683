@@ -142,7 +142,13 @@ const Auth = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    toast({
+      title: 'Cadastros bloqueados',
+      description: 'O registro de novos usuários está desativado.',
+      variant: 'destructive',
+    });
+    return;
+    // eslint-disable-next-line no-unreachable
     const result = signupSchema.safeParse({ name, email, password, confirmPassword });
     if (!result.success) {
       toast({
