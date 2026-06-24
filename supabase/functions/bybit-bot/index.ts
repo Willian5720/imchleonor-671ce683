@@ -183,6 +183,9 @@ serve(async (req) => {
     const userId = await getUserId(req);
     // Require authentication for ALL actions — financial/portfolio data must never be public
     if (!userId) return json({ error: 'auth required' }, 401);
+    // Require admin: the bot uses platform-wide Bybit credentials, so only admins can access it
+    const { data: isAdmin, error: roleErr } = await admin.rpc('has_role', { _user_id: userId, _role: 'admin' });
+    if (roleErr || !isAdmin) return json({ error: 'forbidden: admin only' }, 403);
     const exchange = getExchange();
 
     if (action === 'dashboard') {
