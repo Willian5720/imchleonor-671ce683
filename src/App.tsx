@@ -41,7 +41,14 @@ const App = () => (
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/help" element={<HelpPage />} />
-            <Route path="/bot" element={<TradingBot />} />
+            <Route
+              path="/bot"
+              element={
+                <AdminRoute>
+                  <TradingBot />
+                </AdminRoute>
+              }
+            />
             <Route path="/terms" element={<TermsPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route
